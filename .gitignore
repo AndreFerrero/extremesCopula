@@ -1,0 +1,18 @@
+﻿# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Data
+data/
+*/results/
+*.csv
+*.rds
+*.RData
+
+# Plots
+*.png
+*.pdf
+
+# Logs
+*.log
