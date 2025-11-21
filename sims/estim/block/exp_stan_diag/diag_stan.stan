@@ -34,7 +34,7 @@ transformed parameters {
 
 model {
   // Prior: shifted gamma, favors smaller theta
-  theta_shift ~ gamma(2, 0.25);
+  theta_shift ~ gamma(3, 0.8);
 
   // Likelihood
   target += total_diag_loglik(Y, n, theta);

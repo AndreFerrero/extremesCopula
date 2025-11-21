@@ -6,7 +6,7 @@ library(rstan)
 set.seed(123)
 nk <- 200                  # block size (dimension of copula)
 theta_true <- 6           # true Gumbel copula parameter
-K <- 30                   # number of blocks
+K <- 10                   # number of blocks
 
 plots_folder <- here("sims", "estim", "block", "exp_stan_diag", "results", "plots")
 exp_folder <- here("sims", "estim", "block", "exp_stan_diag")
@@ -95,9 +95,9 @@ ci <- quantile(posterior_samples$theta, probs = c(0.025, 0.975))
 #   theme_minimal(base_size = 14)
 
 # --- Prior density (shifted Gamma) ---
-shape <- 2
-rate  <- 0.25
-theta_seq <- seq(1, 30, length.out = 1000)
+shape <- 3
+rate  <- 0.8
+theta_seq <- seq(1, 15, length.out = 1000)
 theta_shift_seq <- theta_seq - 1
 prior_density <- dgamma(theta_shift_seq, shape = shape, rate = rate)
 prior_density[theta_seq < 1] <- 0
@@ -128,7 +128,7 @@ ggplot() +
        y = "Density") +
   theme_minimal(base_size = 14)
 
-ggsave(here(plots_folder, "density.png"))
+ggsave(here(plots_folder, "density_theta6.png"))
 
 # Extract posterior samples
 posterior_array <- as.array(stan_fit)  # array of shape (iterations, chains, parameters)
@@ -145,7 +145,7 @@ acf <- mcmc_acf(posterior_array, pars = "theta") +
 
 bayes_check <- gridExtra::grid.arrange(trace, acf, ncol = 2)
 
-ggsave(plot = bayes_check,filename =  here(plots_folder, "bayes_check.png"))
+ggsave(plot = bayes_check,filename =  here(plots_folder, "bayes_check_theta6.png"))
 
 # Summary of posterior
 fit_summary <- summary(stan_fit)$summary
