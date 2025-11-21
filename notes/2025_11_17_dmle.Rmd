@@ -40,7 +40,7 @@ The method is easily applicable to Archimedean copulas as their diagonal and its
 
 Once the diagonal has been evaluated in its analytic form, estimation can be performed by optimising the likelihood numerically.
 
-Below we can see a comparison of the estimated parameter (true value is $\theta = 1.5$) for a gumbel copula with increasing observations (K) with d = 12.
+Below we can see a comparison of the estimated parameter (true value is $\theta = 1.5$) for a gumbel copula with increasing observations (K) with d = 12. The DMLE estimator has been computed 100 times for each sample size.
 
 ```{r, echo = FALSE}
 knitr::include_graphics("plots/compare_gumbel.png")
