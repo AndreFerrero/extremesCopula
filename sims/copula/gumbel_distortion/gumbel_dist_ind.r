@@ -18,8 +18,8 @@ source(here(common_dir, "handy_funs.r"))   # must provide rCopFrechet etc.
 # ============================================================
 # Simulation settings (change as needed)
 # ============================================================
-n <- 20000            # length of each sequence X_1...X_n
-B <- 1000             # how many maxima per repetition (M_1 ... M_B)
+n <- 10000            # length of each sequence X_1...X_n
+B <- 500             # how many maxima per repetition (M_1 ... M_B)
 R <- 100              # how many repetitions of the whole experiment
 alpha <- 2
 scenarios <- c("iid", "theta_1.5", "theta_2.5")
@@ -122,7 +122,7 @@ all_results_long <- bind_rows(lapply(names(all_results_by_scenario), function(sc
 
 # Save results
 # save(all_results_long, file = here(res_dir, "gumbel_wholemax_res.Rdata"))
-load(here(res_dir, "clust_gumbel_wholemax_res.Rdata"))
+load(here(res_dir, "gumbel_wholemax_res.Rdata"))
 # ============================================================
 # Summaries and quick plots
 # ============================================================
@@ -161,7 +161,7 @@ clean_long$keep <- NULL
 # Example boxplot across scenarios (one point per repetition)
 my_cols <- c("iid" = "#66c2a5", "theta_1.5" = "#fc8d62", "theta_2.5" = "#8da0cb")
 
-ggplot(clean_long, aes(x = scenario, y = estimate, fill = scenario)) +
+p <- ggplot(clean_long, aes(x = scenario, y = estimate, fill = scenario)) +
   geom_boxplot(alpha = 0.8) +
   facet_wrap(~parameter, scales = "free_y", nrow = 1) +
   scale_fill_manual(values = my_cols) +
@@ -171,10 +171,12 @@ ggplot(clean_long, aes(x = scenario, y = estimate, fill = scenario)) +
   theme_minimal(base_size = 14) +
   theme(legend.position = "none")
 
+# save(p, file = here(plots_dir, "local_sim_plot.Rdata"))
+# load(here(plots_dir, "local_sim_plot.Rdata"))
+print(p)
+
 # You can also inspect numeric summaries:
 all_results_long %>%
   group_by(scenario) %>%
   summarize(across(c(location, scale, shape), list(mean = mean, sd = sd), na.rm = TRUE))
 
-load(here(plots_dir, "sim_plot.Rdata"))
-print(p)
