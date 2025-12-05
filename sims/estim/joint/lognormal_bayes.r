@@ -209,7 +209,7 @@ cat("\nDone.\n")
 # -----------------------------------------------------------
 res_dir <- here("sims", "estim", "joint", "res")
 
-save(futures_list, file = here(res_dir, "lognormal_bayes_chains.Rdata"))
+# save(futures_list, file = here(res_dir, "lognormal_bayes_chains.Rdata"))
 load(here(res_dir, "lognormal_bayes_chains.Rdata"))
 
 burn_in <- n_iter / 2
@@ -220,57 +220,60 @@ mcmc_clean <- window(mcmc_obj, start = burn_in + 1, thin = 5)
 
 summary(mcmc_clean)
 
-cat("\n--- DIAGNOSTICS ---\n")
+
+# DIAGNOSTICS
 print(gelman.diag(mcmc_clean))
 print(effectiveSize(mcmc_clean))
 
-# Visuals
-
+# TRACEPLOTS
 par(mfrow = c(1, 3))
 plot(mcmc_clean[, "theta"], main = "Theta", density = FALSE, auto.layout = FALSE)
 plot(mcmc_clean[, "sigma"], main = "Sigma", density = FALSE, auto.layout = FALSE)
 plot(mcmc_clean[, "mu"], main = "Mu", density = FALSE, auto.layout = FALSE)
 par(mfrow = c(1, 1))
 
+# ESTIMATES
 paste("True Theta:", theta_true)
 paste("Posterior Mean Theta:", round(mean(as.matrix(mcmc_clean[, "theta"])), 3))
 paste("Posterior Median Theta:", round(median(as.matrix(mcmc_clean[, "theta"])), 3))
-
 paste("90% CI:", round(quantile(as.matrix(mcmc_clean[, "theta"]), probs = c(0.1, 0.9)), 3))
-# Density Comparison
-par(mfrow = c(1, 1))
-dens_est <- density(as.matrix(mcmc_clean)[, "theta"])
-plot(dens_est,
+
+paste("True Mu:", mu_true)
+paste("Posterior Mean Mu:", round(mean(as.matrix(mcmc_clean[, "mu"])), 3))
+paste("Posterior Median Mu:", round(median(as.matrix(mcmc_clean[, "mu"])), 3))
+
+paste("True Sigma:", sigma_true)
+paste("Posterior Mean Sigma:", round(mean(as.matrix(mcmc_clean[, "sigma"])), 3))
+paste("Posterior Median Sigma:", round(median(as.matrix(mcmc_clean[, "sigma"])), 3))
+
+####################
+# DENSITIES
+par(mfrow = c(1, 3))
+theta_dens_est <- density(as.matrix(mcmc_clean)[, "theta"])
+plot(theta_dens_est,
     main = "Posterior Density of Theta (Correct Specification)",
     lwd = 2, col = "blue", xlab = expression(theta)
 )
 abline(v = theta_true, col = "red", lwd = 2, lty = 2)
 legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
 
-# Function to find the peak of a density estimate
-get_marginal_mode <- function(x, from_limit = NULL) {
-    # Calculate density
-    # 'from' prevents smoothing into impossible regions (e.g., theta < 1)
-    if (is.null(from_limit)) {
-        d <- density(x)
-    } else {
-        d <- density(x, from = from_limit)
-    }
+mu_dens_est <- density(as.matrix(mcmc_clean)[, "mu"])
+plot(mu_dens_est,
+    main = "Posterior Density of Mu (Correct Specification)",
+    lwd = 2, col = "blue", xlab = expression(mu)
+)
+abline(v = mu_true, col = "red", lwd = 2, lty = 2)
+legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
 
-    # Return the x value corresponding to the maximum y
-    return(d$x[which.max(d$y)])
-}
+sigma_dens_est <- density(as.matrix(mcmc_clean)[, "sigma"])
+plot(sigma_dens_est,
+    main = "Posterior Density of Sigma (Correct Specification)",
+    lwd = 2, col = "blue", xlab = expression(sigma)
+)
+abline(v = sigma_true, col = "red", lwd = 2, lty = 2)
+legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
+par(mfrow = c(1, 1))
 
-# Convert chains to matrix
-post_mat <- as.matrix(mcmc_clean)
-
-# Compute modes
-mode_theta <- get_marginal_mode(post_mat[, "theta"], from_limit = 1)
-mode_mu <- get_marginal_mode(post_mat[, "mu"])
-mode_sigma <- get_marginal_mode(post_mat[, "sigma"], from_limit = 0)
-
-paste("Marginal Mode Theta:", mode_theta)
-paste("Marginal Mode Sigma:", mode_sigma)
 
 # 1. Define the range you want to view
 # (Make sure these numbers are within the range of your current mcmc_clean)
@@ -298,3 +301,102 @@ plot(mcmc_zoom[, "mu"],
 
 par(mfrow = c(1, 1))
 
+# ==============================================================================
+# 6. APPLICATION OF THE THEOREM: G = psi( -log H )
+#    (Log-Normal Margin Version)
+# ==============================================================================
+
+# 1. Define the Generator psi for Gumbel
+# psi(t) = exp( -t^(1/theta) )
+psi_gumbel <- function(t, theta) {
+  exp( - t^(1/theta) )
+}
+
+# 2. Extract Posterior Matrix
+post_mat <- as.matrix(mcmc_clean)
+n_sims <- nrow(post_mat)
+
+# 3. Define Evaluation Grid
+# Log-Normal data is right-skewed, so we extend the grid further out
+y_grid <- seq(min(X), max(X)*10, length.out = 200)
+G_curves <- matrix(0, nrow = n_sims, ncol = length(y_grid))
+
+# 4. Compute G(y) for every posterior draw
+for(i in 1:n_sims) {
+  # A. Get Parameters
+  th  <- post_mat[i, "theta"]
+  mu  <- post_mat[i, "mu"]
+  sig <- post_mat[i, "sigma"]
+  
+  # B. Compute log(H(y))
+  # H(y) = F(y)^n  =>  log(H) = n * log(F)
+  # We use plnorm(..., log.p = TRUE) for numerical precision in the tail
+  
+  log_F <- plnorm(y_grid, meanlog = mu, sdlog = sig, log.p = TRUE)
+  
+  # -log(H)
+  neg_log_H <- -n * log_F
+  
+  # C. Apply the Distortion: G = psi( -log H )
+  # G(y) = exp( - [ -n * log F(y) ]^(1/theta) )
+  G_curves[i, ] <- psi_gumbel(neg_log_H, th)
+}
+
+# -----------------------------------------------------------
+# 7. Visualization and Risk Estimates
+# -----------------------------------------------------------
+
+# Summarize Posterior Predictive G
+G_mean  <- colMeans(G_curves)
+G_lower <- apply(G_curves, 2, quantile, 0.025)
+G_upper <- apply(G_curves, 2, quantile, 0.975)
+
+# Calculate TRUE Theoretical G for comparison
+# True log(F)
+log_F_true <- plnorm(y_grid, meanlog = mu_true, sdlog = sigma_true, log.p = TRUE)
+neg_log_H_true <- -n * log_F_true
+
+# True G (Dependent)
+G_true <- psi_gumbel(neg_log_H_true, theta_true)
+
+# Independence Baseline (theta = 1)
+# psi_1(t) = exp(-t), so G = exp( - (-log H) ) = H
+G_indep <- exp(-neg_log_H_true) 
+
+# PLOT
+par(mfrow=c(1,1))
+plot(y_grid, G_mean, type="l", lwd=2, col="blue", 
+     main="Posterior Distribution of Maxima (Log-Normal Margin)",
+     xlab="Maximum Value (y)", ylab="P(Mn <= y)",
+     ylim=c(0,1))
+
+# Credible Interval
+polygon(c(y_grid, rev(y_grid)), c(G_lower, rev(G_upper)), col=rgb(0,0,1,0.1), border=NA)
+
+# True Theoretical Curve
+lines(y_grid, G_true, col="red", lwd=2, lty=2)
+
+# Baseline: Independence
+lines(y_grid, G_indep, col="darkgreen", lwd=2, lty=3)
+
+legend("bottomright", 
+       legend=c("Estimated G", "True G", "Independence (Wrong)"),
+       col=c("blue", "red", "darkgreen"), lty=c(1,2,3), lwd=2)
+
+# -----------------------------------------------------------
+# 8. Return Level Calculation
+# -----------------------------------------------------------
+
+target_p <- 0.99 # 100-event return level
+
+# Helper to find x for a given probability
+get_rl <- function(curve, prob) y_grid[which.min(abs(curve - prob))]
+
+rl_est   <- get_rl(G_mean, target_p)
+rl_true  <- get_rl(G_true, target_p)
+rl_indep <- get_rl(G_indep, target_p)
+
+cat("\n--- 100-Period Return Level ---\n")
+cat("Estimated (Dependent):", round(rl_est, 2), "\n")
+cat("True (Dependent):     ", round(rl_true, 2), "\n")
+cat("Independence (Wrong): ", round(rl_indep, 2), "\n")
