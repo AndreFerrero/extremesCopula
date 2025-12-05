@@ -191,6 +191,11 @@ cat("\nDone.\n")
 
 chains_raw <- value(futures_list)
 
+res_dir <- here("sims", "estim", "joint", "res")
+
+save(chains_raw, file = here(res_dir, "transf_frechet_bayes_chains.Rdata"))
+load(here(res_dir, "lognormal_bayes_chains.Rdata"))
+
 # -----------------------------------------------------------
 # 5. Post-Processing: Back-Transform Chains
 # -----------------------------------------------------------
@@ -301,9 +306,9 @@ polygon(c(y_grid, rev(y_grid)), c(G_lower, rev(G_upper)),
         col = rgb(0, 0, 1, 0.1), border = NA)
 
 lines(y_grid, G_true, col = "red", lwd = 2, lty = 2)
-lines(y_grid, G_pow_mean, col = "darkgreen", lwd = 2, lty = 3)
+# lines(y_grid, G_pow_mean, col = "darkgreen", lwd = 2, lty = 3)
 
-legend("bottomright", 
-       legend = c("Posterior Mean", "True G", "Power Diag Approx"),
-       col = c("blue", "red", "darkgreen"), 
-       lwd = 2, lty = c(1, 2, 3))
+# legend("bottomright", 
+#        legend = c("Posterior Mean", "True G", "Power Diag Approx"),
+#        col = c("blue", "red", "darkgreen"), 
+#        lwd = 2, lty = c(1, 2, 3))
