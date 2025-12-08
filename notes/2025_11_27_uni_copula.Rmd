@@ -22,6 +22,7 @@ U_cop <- rCopula(1, Gcop)
 Choosing the margin allows to construct a sample $X_1, ..., X_n \sim H = C(F(x_1), ..., F(x_n))$ by applying $X_i = F^{-1} (U_i)$. For example, taking $X_i \sim Frechet(2)$:
 
 ```{r}
+library(evd)
 alpha <- 2
 X_cop <- qfrechet(U_cop, shape = alpha)
 ```
@@ -420,15 +421,15 @@ negLL <- function(theta, u) -loglik_gumbel(theta, u)
 # -----------------------------------------------------------
 
 # TRUE UNIFORMS
-est_trueU <- optim(par = 5, fn = negLL, u = U, method="L-BFGS-B",
+est_trueU <- optim(par = 5, fn = negLL, u = U, method = "L-BFGS-B",
                    lower = 1.001, upper = 30)$par
 
 # PARAMETRIC MARGINS
-est_param <- optim(par = 5, fn = negLL, u = u_hat_param, method="L-BFGS-B",
+est_param <- optim(par = 5, fn = negLL, u = u_hat_param, method = "L-BFGS-B",
                    lower = 1.001, upper = 30)$par
 
 # ECDF PSEUDO-OBSERVATIONS
-est_ecdf <- optim(par = 5, fn = negLL, u = u_hat_ecdf, method="L-BFGS-B",
+est_ecdf <- optim(par = 5, fn = negLL, u = u_hat_ecdf, method = "L-BFGS-B",
                    lower = 1.001, upper = 30)$par
 
 # -----------------------------------------------------------
@@ -457,11 +458,10 @@ abline(v = est_ecdf,    col="red",      lty=3, lwd=2)
 
 legend("topright",
        legend = c("True U", "Parametric Margin", "ECDF", 
-                  "True theta", "theta_trueU", "theta_param", "theta_ecdf"),
-       col    = c("black", "blue", "red", "darkgreen", 
-                  "black", "blue", "red"),
-       lty    = c(1,1,1,2,3,3,3),
-       lwd    = c(3,2,2,2,2,2,2))
+                  "True theta", "theta_trueU"),
+       col    = c("black", "blue", "red", "darkgreen", "black"),
+       lty    = c(1,1,1,2,3),
+       lwd    = c(3,2,2,2,2))
        
 ```
 
