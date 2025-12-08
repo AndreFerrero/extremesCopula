@@ -10,7 +10,8 @@ data/
 *.rds
 *.RData
 
-
+*rdb
+*rdx
 
 # Logs
 *.log
