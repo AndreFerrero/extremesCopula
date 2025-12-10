@@ -9,7 +9,7 @@ set.seed(123)
 # -----------------------------------------------------------
 # 1. Simulate Data (Log-Normal Margins)
 # -----------------------------------------------------------
-n <- 100000
+n <- 150
 theta_true <- 3
 
 # Log-Normal Parameters (corresponding to Normal on log-scale)
@@ -207,7 +207,7 @@ cat("\nDone.\n")
 # -----------------------------------------------------------
 # 5. Analysis
 # -----------------------------------------------------------
-res_dir <- here("sims", "estim", "joint", "res")
+res_dir <- here("sims", "estim", "joint", "full_lik_bayes", "res")
 
 # save(futures_list, file = here(res_dir, "lognormal_bayes_chains.Rdata"))
 load(here(res_dir, "lognormal_bayes_chains.Rdata"))
