@@ -375,11 +375,11 @@ stopCluster(cl)
 sbi_dir <- here("sims", "estim", "joint", "SBI")
 res_dir <- here(sbi_dir, "res")
 
-save(results, file = here(res_dir, "morestats_semiBSL_lognorm.Rdata"))
+# save(results, file = here(res_dir, "morestats_semiBSL_lognorm.Rdata"))
 # ==============================================================================
 # 5. Diagnostics & Visualization
 # ==============================================================================
-
+load(here(res_dir, "morestats_semiBSL_lognorm.Rdata"))
 library(coda)
 
 # Convert to mcmc.list
@@ -396,3 +396,24 @@ plot(mcmc_res)
 gelman.diag(mcmc_res)
 
 cat("True Theta:", TRUE_THETA, "\n")
+
+##### PPC
+# 1. Sample 100 parameters from your posterior
+post_samples <- as.matrix(mcmc_res) # Combine all chains
+idxs <- sample(nrow(post_samples), 100)
+thetas_post <- post_samples[idxs, ]
+
+# 2. Simulate data for each posterior sample
+# We will plot the density of the OBSERVED data vs POSTERIOR data
+plot(density(y_data), lwd=2, main="Posterior Predictive Check", ylim=c(0, 0.6))
+
+for(i in 1:100) {
+  # Simulate using the parameters from the chain
+  y_rep <- fn_sim_gumbel(thetas_post[i, ], N_OBS)
+  lines(density(y_rep), col=rgb(0, 0, 1, 0.1)) # Blue, transparent lines
+}
+
+# Redraw observed data on top
+lines(density(y_data), lwd=2, col="black")
+legend("topright", legend=c("Observed", "Posterior Predictive"), 
+       col=c("black", "blue"), lwd=2)
