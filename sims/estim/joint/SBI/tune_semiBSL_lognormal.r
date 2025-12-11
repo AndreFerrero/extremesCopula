@@ -379,7 +379,7 @@ res_dir <- here(sbi_dir, "res")
 # ==============================================================================
 # 5. Diagnostics & Visualization
 # ==============================================================================
-load(here(res_dir, "morestats_semiBSL_lognorm.Rdata"))
+load(here(res_dir, "morelogstats_semiBSL_lognorm.Rdata"))
 library(coda)
 
 # Convert to mcmc.list

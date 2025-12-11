@@ -1,5 +1,5 @@
 ---
-title: "Block Estimation for Univariate Data"
+title: "Copula Estimation for Blocked Univariate Data"
 author: "Andrea Ferrero"
 date: "2025-11-18"
 output: pdf_document
