@@ -1,0 +1,16 @@
+---
+title: "Copula-Based Markov Models"
+author: "Andrea Ferrero"
+output: pdf_document
+---
+
+Copulas have been used to model univariate time series by constructing Markov models.
+
+For example, a copula-based markov model of order one assumes:
+
+\[ (Y_t, Y_{t+1}) \sim C(F(y_t), F(y_{t+1})) ,\]
+
+with $F$ the marginal distribution.
+
+This approach differs from defining a copula over the entire sequence $Y_1, \dots , Y_n$ and offers the computational advantage
+of using bivariate copulas, characterised by a likelihood simpler to evaluate.

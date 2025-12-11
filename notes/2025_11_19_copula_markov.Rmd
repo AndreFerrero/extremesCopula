@@ -1,6 +1,0 @@
----
-title: "Copula Based Markov Model"
-author: "Andrea Ferrero"
-date: "2025-11-19"
-output: html_document
----

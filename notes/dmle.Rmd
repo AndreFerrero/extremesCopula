@@ -1,0 +1,137 @@
+---
+title: "Diagonal Maximum Likelihood Estimation"
+author: "Andrea Ferrero"
+date: "2025-11-17"
+output: pdf_document
+---
+
+## 1. Idea and Motivation
+
+The goal is to perform estimation on the copula parameter $\theta$. Standard approach in copula estimation would be classical maximum likelihood.
+
+However, standard MLE requires evaluation of the copula density, which in high dimension can be cumbersome or even impossible (d > 220 is not implemented in the copula package for gumbel copula and others).
+
+The advantage of this other approach introduced in Hofert is that it is fast and does not scale bad in high dimensions. Actually, as suggested by Hofert, an increasing number of dimension can be useful in providing information on the dependence between the variables.
+
+Everything relies on the idea that the diagonal $\delta_{\theta}(u)$ is the distribution of $Y_i = max(U_j)$ for $j = 1, \dots, d$.
+
+An estimator can therefore be obtained by:
+
+\[
+\hat{\theta}_n = \operatorname*{arg\,sup}_{\theta \in \Theta} \sum_{i = 1}^n \log {\delta^\prime}_\theta (Y_i)
+\]
+
+For the Gumbel copula, the estimator has even a closed form:
+
+\[
+\hat{\theta}_n^G = \frac{\log d}{\log n - \log(\sum_{i = 1}^n - \log Y_i)}   
+\]
+
+If one takes ${\hat{\theta}_n^G}^* = max(\hat{\theta}_n^G, 1)$, he's guaranteed to have a valid estimator.
+
+
+## 2. Application to Archimedean copulas (Gumbel case)
+
+The method is easily applicable to Archimedean copulas as their diagonal and its derivative have a simple analytic form:
+
+\[
+\delta_{\theta}(u) = \psi_\theta(d \psi_\theta^{-1}(u)) \, , \; \delta^{\prime}_{\theta}(u) = d \psi_\theta^{\prime}(d \psi_\theta^{-1}(u)) {(\psi_\theta^{-1})}^\prime(u)
+\]
+
+Once the diagonal has been evaluated in its analytic form, estimation can be performed by optimising the likelihood numerically.
+
+Below we can see a comparison of the estimated parameter (true value is $\theta = 1.5$) for a gumbel copula with increasing observations (K) with d = 12. The DMLE estimator has been computed 100 times for each sample size.
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/compare_gumbel.png")
+```
+
+## 3. Precision and Dependence
+
+The precision of the estimator was found to decrease rapidly when performing DMLE with increasing dependence, due to the instability of the estimates. This has led to the necessity of cutting off the estimated values by only retaining values in (1,10). Below we see the result with $\theta = 4$.
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/compare_gumbel_theta4.png")
+```
+
+This was found to be connected to how the log-likelihood changes with increasing values of theta:
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/dloglik_theta.png")
+```
+
+The gumbel copula parameter is tightly connected to the correlation in the data. In particular, there is a direct relationship between $\theta$ and Kendall's $\tau$:
+\[
+\tau = 1 - \frac{1}{\theta} \implies \theta = \frac{1}{1 - \tau}
+\]
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/theta_tau_gumbel.png")
+```
+
+
+## Bayesian Estimation with Stan
+
+A bayesian approach can be followed by simply implementing the diagonal likelihood in Stan and let the software perform posterior sampling. Given the shape of the likelihood, it is suggested to put a weakly informative prior on the copula parameter to help the sampler avoid unrealistic values. Values of the parameter greater than 10 are associated to Kendall's correlation coefficient greater than 0.9 therefore should get much less plausibility than the others. For this application, we have chosen a $Gamma(3, 0.8)$, which has $Mode = 0.25$, $Mean = 3.75$.
+
+### Moderate dependence - theta = 2.5
+
+Taking a dataset with low sample size (K = 10), d = 200 and a true value $\theta = 2.5$, we get the following posterior results (Prior in green and posterior in blue). The advantage is that we eaily quantify uncertainty in the parameter, and propagate it to future estimates in case of a more convoluted process. Moreover, it seems that having a prior distribution can help regularise the model into reasonable values.
+
+```{r, echo = FALSE, out.height="40%"}
+knitr::include_graphics("plots/density_theta2p5.png")
+```
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/bayes_check_theta2p5.png")
+```
+
+With a posterior median of 2.84 against a true value of 2.5, the model result is quite good considering the low sample size. Half of the posterior probability is between 2.53 and 3.29, which is reasonable to expect given the low amount of information in the data.
+
+```{r, echo = FALSE}
+theta2p5_summary <- data.frame(
+  Mean    = 3.02,
+  SE_mean = 0.01,
+  SD      = 0.85,
+  q2.5  = 2.14,
+  q25   = 2.53,
+  q50   = 2.84,
+  q75   = 3.29,
+  q97.5 = 5.00,
+  n_eff   = 4518,
+  Rhat    = 1.00
+)
+
+# Print table in RMarkdown
+kable(theta2p5_summary, caption = "Posterior summary of θ - True value is 2.5", align = "c")
+
+```
+
+
+### Strong dependence - theta = 6
+```{r, echo = FALSE, out.height="40%"}
+knitr::include_graphics("plots/density_theta6.png")
+```
+
+```{r, echo = FALSE}
+knitr::include_graphics("plots/bayes_check_theta6.png")
+```
+
+```{r, echo = FALSE}
+theta6_summary <- data.frame(
+  mean    = 5.92,
+  se_mean = 0.02,
+  sd      = 1.63,
+  q2.5    = 3.71,
+  q25     = 4.76,
+  q50     = 5.59,
+  q75     = 6.70,
+  q97.5   = 10.06,
+  n_eff   = 5471,
+  rhat    = 1.00
+)
+
+kable(theta6_summary,
+      caption = "Posterior summary of θ - True value is 6",
+      align = "c")
+```
