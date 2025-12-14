@@ -1,0 +1,199 @@
+---
+title: "Joint Copula Bayesian Modelling"
+output: 
+  pdf_document
+---
+
+
+# 1. Motivation
+
+We are assuming the following joint distribution for a sequence of random variables $X_1, \dots, X_n \sim C_\theta(F(x_1), \dots, F(x_n))$, with C a parametric copula (potentially archimedean) and F the marginal of each $X_i$.
+
+We know from simulation results that the likelihood peaks at the correct copula generating parameter if we take the realisations $U_1, \dots, U_n \sim C_\theta$. However, estimating the margin F from a realisation of $X_1, \dots, X_n$, to obtain the pseudo observations $\hat{U}_i = \hat{F}(X_i)$, leads to a likelihood which peaks at $\theta = 1$, the independence case in the Gumbel copula. This could be understood by realising that we are using estimators for the margin which would work under independence, but which could fail under the dependent setup at hand.
+
+```{r lik plot sim, echo = F, cache = TRUE}
+set.seed(123)
+
+# -----------------------------------------------------------
+# 1. TRUE parameter and dimension
+# -----------------------------------------------------------
+n <- 100
+theta_true <- 3
+
+# -----------------------------------------------------------
+# 2. Simulate ONE 100-dimensional vector from Gumbel copula
+# -----------------------------------------------------------
+cop <- gumbelCopula(param = theta_true, dim = n)
+U <- as.numeric(rCopula(1, cop))   # true uniforms
+
+# -----------------------------------------------------------
+# 3. Generate X via lognormal margins
+# -----------------------------------------------------------
+mu <- 0
+sigma <- 1
+X <- qlnorm(U, meanlog = mu, sdlog = sigma)
+
+# -----------------------------------------------------------
+# 4A. Parametric margins
+# -----------------------------------------------------------
+mu_hat <- mean(log(X))
+sigma_hat <- sd(log(X))
+u_hat_param <- plnorm(X, meanlog = mu_hat, sdlog = sigma_hat)
+
+# -----------------------------------------------------------
+# 4B. ECDF pseudo-observations
+# -----------------------------------------------------------
+u_hat_ecdf <- rank(X) / (n + 1)
+
+# -----------------------------------------------------------
+# 5. Gumbel log-likelihood
+# -----------------------------------------------------------
+loglik_gumbel <- function(theta, u) {
+  if (theta <= 1) return(-1e10)   # keep optimizer stable
+  cop <- gumbelCopula(param = theta, dim = length(u)) 
+  ll <- log(dCopula(u, copula = cop))
+  return(ll)
+}
+
+# Negative log-likelihood for optimization
+negLL <- function(theta, u) -loglik_gumbel(theta, u)
+
+# -----------------------------------------------------------
+# 6. Compute estimators via optim()
+# -----------------------------------------------------------
+
+# TRUE UNIFORMS
+est_trueU <- optim(par = 5, fn = negLL, u = U, method = "L-BFGS-B",
+                   lower = 1.001, upper = 30)$par
+
+# PARAMETRIC MARGINS
+est_param <- optim(par = 5, fn = negLL, u = u_hat_param, method = "L-BFGS-B",
+                   lower = 1.001, upper = 30)$par
+
+# ECDF PSEUDO-OBSERVATIONS
+est_ecdf <- optim(par = 5, fn = negLL, u = u_hat_ecdf, method = "L-BFGS-B",
+                   lower = 1.001, upper = 30)$par
+
+# -----------------------------------------------------------
+# 7. Likelihood curves for comparison
+# -----------------------------------------------------------
+theta_grid <- seq(1.01, 12, length.out = 200)
+
+ll_trueU  <- sapply(theta_grid, loglik_gumbel, u = U)
+ll_param  <- sapply(theta_grid, loglik_gumbel, u = u_hat_param)
+ll_ecdf   <- sapply(theta_grid, loglik_gumbel, u = u_hat_ecdf)
+
+```
+
+```{r lik plot, echo = FALSE}
+plot(theta_grid, ll_trueU, type="l", lwd=3, col="black",
+     xlab=expression(theta), ylab="Log-likelihood",
+     main = "Gumbel log-likelihood")
+
+lines(theta_grid, ll_param, col="blue", lwd=2)
+lines(theta_grid, ll_ecdf,  col="red",  lwd=2)
+
+abline(v = theta_true, col="darkgreen", lty=2, lwd=2)
+
+legend("topright",
+       legend = c("True U", "Parametric Margin", "ECDF", "True theta"),
+       col    = c("black", "blue", "red", "darkgreen"),
+       lty    = c(1,1,1,2),
+       lwd    = c(3,2,2,2))
+       
+```
+
+An idea is to avoid the 2 steps procedure by performing estimation on the margin and the copula parameter simultaneously. A fully bayesian model would inherently consider both objects as targets, and hopefully it might be able to consider the dependence structure while estimating the margin.
+
+\newpage
+
+# 2. Bayesian Model with Parametric Margin
+
+The simplest approach consists in assuming a parametric form for the margin, that is to assume $X_i \sim F_\varphi$, with $\varphi$ the parameters of the distribution. Hierarchically, this yields the following structure:
+
+\begin{align*}
+\varphi \sim \pi_\varphi \, &, \quad \theta \sim \pi_\theta \\
+X_1, \dots, X_n | \; \theta &, \varphi \sim C_\theta (F_\varphi (x_1), \dots, F_\varphi (x_n))
+\end{align*}
+
+## 2.1 Adaptive Block Metropolis–Hastings Algorithm
+
+We aim to sample from the joint posterior
+\[
+\pi(\theta,\varphi \mid x_{1:n})
+\;\propto\;
+\pi_\theta(\theta)\,
+\pi_\varphi(\varphi)\,
+c_\theta\!\left(F_\varphi(x_1), \dots, F_\varphi(x_n)\right)
+\prod_{i=1}^n f_\varphi(x_i),
+\]
+where the full parameter vector is
+\[
+\boldsymbol{\phi} = (\theta,\varphi)\in\mathbb{R}^d.
+\]
+
+\bigskip
+\noindent\textbf{Algorithm 1: Block Adaptive Metropolis--Hastings}
+
+\begin{enumerate}
+\item \textbf{Initialisation:}
+  \begin{itemize}
+    \item Set the initial parameter vector 
+    \(\boldsymbol{\phi}^{(0)}\).
+    \item Compute the initial log-posterior 
+    \(\ell_{\text{curr}} = \ell(\boldsymbol{\phi}^{(0)})\).
+    \item Set the proposal covariance  
+      \(C_0 = \varepsilon_0 I_d\).
+    \item Let \(C \leftarrow C_0\).
+    \item Set adptation time \(t_{\mathrm{adapt}}\) and frequency \(\Delta_{\mathrm{adapt}}\)
+  \end{itemize}
+
+\item \textbf{For} \(t = 1, \dots, N\):
+  \begin{enumerate}
+    \item \textbf{Proposal:}\\
+    Draw
+    \[
+    \boldsymbol{\phi}^\star \sim 
+      \mathcal{N}\!\left(\boldsymbol{\phi}^{(t-1)},\, C\right).
+    \]
+
+    \item \textbf{Evaluate proposed log-posterior:}\\
+    Compute 
+    \(\ell^\star = \ell(\boldsymbol{\phi}^\star)\).
+
+    \item \textbf{Acceptance probability:}\\
+    \[
+    \alpha = 
+    \min\{ 1,\,
+      \exp(\ell^\star - \ell_{\text{curr}})
+    \}.
+    \]
+
+    \item \textbf{Accept/reject:}\\
+    Draw \(u\sim\mathrm{Unif}(0,1)\).
+    \begin{itemize}
+      \item If \(u < \alpha\): set  
+        \(\boldsymbol{\phi}^{(t)} = \boldsymbol{\phi}^\star\)  
+        and \(\ell_{\text{curr}} = \ell^\star\).
+      \item Else: set  
+        \(\boldsymbol{\phi}^{(t)} = \boldsymbol{\phi}^{(t-1)}\).
+    \end{itemize}
+
+    \item \textbf{Adaptive covariance update:}\\
+    If \(t > t_{\mathrm{adapt}}\) and  
+    \(t \equiv 0 \pmod{\Delta_{\mathrm{adapt}}}\), then:
+    \[
+    \widehat{\Sigma}_{1:t}
+      = \mathrm{Cov}\!\left(
+          \boldsymbol{\phi}^{(1)}, \dots, \boldsymbol{\phi}^{(t)}
+        \right),
+    \]
+    \[
+    C \leftarrow 
+      \frac{2.38^2}{d}\,\widehat{\Sigma}_{1:t}
+      + \varepsilon I_d.
+    \]
+  \end{enumerate}
+\end{enumerate}
+
+This sampling scheme allows for the covariance of the proposal distribution to adapt as the posterior gets explored. See 
