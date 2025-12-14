@@ -190,7 +190,8 @@ results <- parLapply(cl, 1:n_chains, function(cid) {
     )
 })
 
-save(results, file = here(res_dir, "adaptstop_lognormal_bayes_chains.Rdata"))
+res_dir <- here("sims", "estim", "joint", "full_lik_bayes", "res")
+save(results, file = here(res_dir, "correct_adapt_lognormal_bayes.Rdata"))
 
 stopCluster(cl)
 
@@ -199,9 +200,8 @@ cat("\nDone.\n")
 # -----------------------------------------------------------
 # 5. Analysis
 # -----------------------------------------------------------
-res_dir <- here("sims", "estim", "joint", "full_lik_bayes", "res")
 
-load(here(res_dir, "lognormal_bayes_chains.Rdata"))
+load(here(res_dir, "correct_adapt_lognormal_bayes.Rdata"))
 
 chains_list <- value(results)
 mcmc_obj <- mcmc.list(chains_list)
