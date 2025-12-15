@@ -43,13 +43,13 @@ loglik_gumbel <- function(alpha, u) {
 # -----------------------------------------------------------
 alpha_grid <- seq(1.0, 5, length.out = 200)
 ll_values <- sapply(alpha_grid, loglik_gumbel, u = u_hat)
-
+true_ll <- sapply(alpha_grid, loglik_gumbel, u = U)
 # -----------------------------------------------------------
 # 7. Plot the likelihood curve
 # -----------------------------------------------------------
-plot(alpha_grid, ll_values, type = "l", lwd = 2,
+plot(alpha_grid, true_ll, type = "l", lwd = 2,
      xlab = expression(alpha),
-     ylab = "Log-likelihood",
-     main = paste("Log-likelihood for ONE sample vector (n =", n, ")"))
+     ylab = "Log-likelihood")
+lines(alpha_grid, ll_values, col = "green", lwd = 2)
 abline(v = alpha_true, col = "red", lwd = 2, lty = 2)
-legend("bottomright", legend = c("True alpha"), col = "red", lwd = 2, lty = 2)
+legend("topright", legend = c("True alpha", "U", "Uhat"), col = c("red", "black", "green"), lwd = 2, lty = c(2, 1, 1))
