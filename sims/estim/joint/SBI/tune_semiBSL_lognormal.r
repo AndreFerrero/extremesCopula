@@ -49,11 +49,9 @@ fn_sum_stats <- function(x) {
   }
   m <- median(x)
   md <- mad(x)
-  q_diff <- diff(quantile(x, probs = c(0.05, 0.95)))
-  tail_ratio <- (quantile(x, 0.95) - m) / (m - quantile(x, 0.05))
   if (md == 0) md <- 1e-6
   s_max <- (max(x) - m) / md
-  c(m, md, q_diff, tail_ratio, s_max)
+  c(m, md, s_max)
 }
 
 # 2.4 Prior
@@ -90,11 +88,11 @@ get_kde_estimates <- function(sim_data, obs_val) {
 }
 
 # 2.6 SemiBSL Log-Likelihood
-semi_bsl_loglik <- function(param_vec, y_sum, n_sim, n_obs) {
+semi_bsl_loglik <- function(param_vec, y_sum, n_sim_bsl, n_obs) {
   d <- length(y_sum)
-  sim_stats <- matrix(NA, nrow = n_sim, ncol = d)
+  sim_stats <- matrix(NA, nrow = n_sim_bsl, ncol = d)
 
-  for (i in 1:n_sim) {
+  for (i in 1:n_sim_bsl) {
     x_sim <- fn_sim_gumbel(param_vec, n_obs)
     if (any(is.na(x_sim))) {
       return(-Inf)
@@ -104,7 +102,7 @@ semi_bsl_loglik <- function(param_vec, y_sum, n_sim, n_obs) {
 
   total_loglik <- 0
   eta_obs <- numeric(d)
-  eta_sim <- matrix(NA, nrow = n_sim, ncol = d)
+  eta_sim <- matrix(NA, nrow = n_sim_bsl, ncol = d)
 
   for (j in 1:d) {
     kde_res <- get_kde_estimates(sim_stats[, j], y_sum[j])
@@ -132,15 +130,18 @@ log_jacobian <- function(phi) phi[2] + phi[3]
 # 3. Adaptive Block Metropolis for SemiBSL
 # ==============================================================================
 
-run_worker_bsl <- function(y_obs_sum, n_mcmc, burn_in, n_sim, n_obs, init_param, chain_id = 1) {
+run_worker_bsl <- function(y_obs_sum, n_mcmc, burn_in, n_sim_bsl, n_obs, init_param, chain_id = 1) {
   d_param <- 3
   chain <- matrix(NA, nrow = n_mcmc, ncol = d_param)
   colnames(chain) <- c("mu", "sigma", "theta")
   acc <- 0
+  adapt_start <- 100
+  adapt_stop <- burn_in
+  adapt_freq <- 50
 
   curr_phi <- to_unconstrained(init_param)
   curr_param <- init_param
-  curr_ll <- semi_bsl_loglik(curr_param, y_obs_sum, n_sim, n_obs)
+  curr_ll <- semi_bsl_loglik(curr_param, y_obs_sum, n_sim_bsl, n_obs)
   curr_lp <- fn_log_prior(curr_param)
   curr_post <- curr_ll + curr_lp + log_jacobian(curr_phi)
   if (!is.finite(curr_post)) stop("Initial param invalid")
@@ -149,6 +150,7 @@ run_worker_bsl <- function(y_obs_sum, n_mcmc, burn_in, n_sim, n_obs, init_param,
   sd_scale <- (2.38^2) / d_param
   eps <- 1e-6 * diag(d_param)
 
+  
   pb <- txtProgressBar(min = 0, max = n_mcmc, style = 3)
 
   for (i in 1:n_mcmc) {
@@ -161,7 +163,7 @@ run_worker_bsl <- function(y_obs_sum, n_mcmc, burn_in, n_sim, n_obs, init_param,
     if (prop_lp == -Inf) {
       log_alpha <- -Inf
     } else {
-      prop_ll <- semi_bsl_loglik(prop_param, y_obs_sum, n_sim, n_obs)
+      prop_ll <- semi_bsl_loglik(prop_param, y_obs_sum, n_sim_bsl, n_obs)
       prop_post <- prop_ll + prop_lp + prop_jac
       log_alpha <- prop_post - curr_post
     }
@@ -177,8 +179,8 @@ run_worker_bsl <- function(y_obs_sum, n_mcmc, burn_in, n_sim, n_obs, init_param,
     chain[i, ] <- curr_param
 
     # Adaptive covariance during burn-in
-    if (i > 50 && i <= burn_in && i %% 50 == 0) {
-      hist_phi <- t(apply(chain[1:i, ], 1, to_unconstrained))
+    if (i > adapt_start && i <= adapt_stop && i %% adapt_freq == 0) {
+      hist_phi <- t(apply(chain[adapt_start:i, ], 1, to_unconstrained))
       cov_mat <- sd_scale * cov(hist_phi) + eps
     }
 
@@ -213,9 +215,9 @@ X <- fn_sim_gumbel(param_true, n)
 y_sum <- fn_sum_stats(X)
 
 n_chains <- 4
-n_mcmc <- 10000
+n_mcmc <- 3000
 burn_in <- floor(n_mcmc / 2)
-n_sim_bsl <- 1600
+n_sim_bsl <- 200
 
 inits_list <- list(
   c(0.5, 0.8, 1.8),
@@ -229,6 +231,7 @@ clusterEvalQ(cl, {
   library(mvtnorm)
   library(MASS)
   library(stabledist)
+  library(coda)
 })
 
 clusterExport(cl, varlist = c(
@@ -245,7 +248,7 @@ results <- parLapply(cl, 1:n_chains, function(cid) {
     y_obs_sum = y_sum,
     n_mcmc = n_mcmc,
     burn_in = burn_in,
-    n_sim = n_sim_bsl,
+    n_sim_bsl = n_sim_bsl,
     n_obs = length(X),
     init_param = inits_list[[cid]],
     chain_id = cid
