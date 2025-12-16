@@ -28,7 +28,7 @@ rGumbV <- function(n, theta) {
 # ==============================================================================
 # 2. Simulator Function (fnSim)
 # ==============================================================================
-fn_sim_gumbel <- function(theta, n_obs) {
+fn_sim_gumbel_lognorm <- function(theta, n_obs) {
     mu <- theta[1]
     sigma <- theta[2]
     theta_cop <- theta[3]
@@ -86,7 +86,7 @@ fn_log_prior <- function(theta) {
     # 3. Theta: Shifted Gamma (Theta - 1 ~ Gamma)
     # Ensures Theta >= 1.
     # We calculate density of (theta - 1)
-    lp_theta <- dgamma(cop_theta - 1, shape = 2, scale = 2, log = TRUE)
+    lp_theta <- dgamma(cop_theta - 1, shape = 2, scale = 1, log = TRUE)
 
     # Sum the log probabilities
     return(lp_mu + lp_sigma + lp_theta)
@@ -101,108 +101,49 @@ N_OBS <- 1000
 true_params <- c(0, 1, 2) # mu=0, sigma=1, theta=2
 
 # Generate "Observed" Data
-y_obs <- fn_sim_gumbel(true_params, n_obs = N_OBS)
+y_obs <- fn_sim_gumbel_lognorm(true_params, n_obs = N_OBS)
 
 # ==============================================================================
 # 6. Run semiBSL
 # ==============================================================================
+cov_rw <- diag(c(0.03, 0.03, 0.03))
 
-# Proposal Covariance (needs tuning in practice)
-cov_rw <- diag(c(0.05, 0.05, 0.1))
-
-library(parallel)
-
-# 1. Detect cores (leave one free for OS)
-# 2. Prepare Starting Values
-start_points <- list(
-    c(0.1, 1.0, 1.1),
-    c(0.8, 2.0, 1.8),
-    c(0.5, 1.2, 1.4),
-    c(0.3, 1.8, 2.0)
+mod <- newModel(
+    fnSim = fn_sim_gumbel_lognorm,
+    fnSum = fn_sum_stats,
+    theta0 = c(0, 1, 2),
+    fnLogPrior = fn_log_prior,
+    simArgs = list(n_obs = N_OBS)
 )
 
-n_chains <- length(start_points)
+bounds <- matrix(c(-Inf, Inf, 0, Inf, 1, Inf), 3, 2, byrow = TRUE)
 
-n_cores <- n_chains
-cl <- makeCluster(n_cores)
+result_semibsl <- bsl(
+    y = y_obs,
+    n = 300,
+    M = 10000,
+    model = mod,
+    covRandWalk = cov_rw,
+    method = "semiBSL",
+    logitTransformBound = bounds,
+    verbose = FALSE
+)
 
 
-# Ensure the list length matches the number of cores/tasks you want to run
-if (length(start_points) > n_cores) start_points <- start_points[1:n_cores]
+plot(result_semibsl, which = 1, thetaTrue = true_params)
 
-# 3. Export Libraries to the cluster
-clusterEvalQ(cl, {
-    library(BSL)
-    library(stabledist)
-})
+result_semibsl
+summary(result_semibsl)
 
-# 4. Export Data and Functions to the cluster
-# This is CRITICAL. The workers start blank.
-clusterExport(cl, varlist = c(
-    "y_obs", "cov_rw", # Data objects
-    "rGumbV", "fn_sim_gumbel", # Simulation functions
-    "fn_sum_stats", "fn_log_prior", # Summary and Prior
-    "N_OBS"
-))
+theta_chain <- result_semibsl@theta
 
-# 5. Define the Wrapper Function
-# This function runs on each worker
-run_chain_worker <- function(start_val) {
-    # --- Define the BSL Model Object ---
-    my_model <- newModel(
-        fnSim = fn_sim_gumbel,
-        fnSum = fn_sum_stats,
-        fnLogPrior = fn_log_prior,
-        theta0 = start_val, # Initial guess
+# Traceplots
+par(mfrow = c(3, 1), mar = c(3, 4, 2, 1))
 
-        # Auxiliary arguments for simulation
-        simArgs = list(n_obs = N_OBS),
-
-        # Parameter names for plotting
-        thetaNames = c("mu", "sigma", "theta_cop")
-    )
-
-    # Run BSL
-    res <- bsl(
-        y = y_obs,
-        n = 300,
-        M = 5000,
-        model = my_model,
-        covRandWalk = cov_rw,
-        method = "semiBSL",
-        verbose = FALSE
-    )
-    return(res)
-}
-
-# 6. Run in Parallel
-cat("Running chains in parallel on", n_cores, "cores...\n")
-results_list <- parLapply(cl, start_points, run_chain_worker)
-
-# 7. Stop Cluster
-stopCluster(cl)
-cat("Parallel execution finished.\n")
-
-library(coda)
-
-# 1. Extract samples and convert to 'mcmc.list' object
-mcmc_list <- mcmc.list(lapply(results_list, function(res) {
-    # extract samples, discard burn-in (e.g., first 1000)
-    samps <- getTheta(res)
-    mcmc(samps[-(1:1000), ])
-}))
-
-# 2. Visual Traceplot (Check if they mix/overlap)
-plot(mcmc_list)
-
-# 3. Gelman-Rubin Diagnostic
-# Point est. should be close to 1 (e.g., < 1.05 or 1.1)
-gelman.diag(mcmc_list)
-
-# 4. Combine all chains for final inference
-all_samples <- do.call(rbind, lapply(results_list, function(res) {
-    getTheta(res)[-(1:1000), ]
-}))
-
-# Calculate Final Posterior Means
-colMeans(all_samples)
+plot(theta_chain[,1], type = "l",
+     main = expression(mu), xlab = "Iteration", ylab = "")
+plot(theta_chain[,2], type = "l",
+     main = expression(sigma), xlab = "Iteration", ylab = "")
+plot(theta_chain[,3], type = "l",
+     main = expression(theta), xlab = "Iteration", ylab = "")
+par(mfrow = c(1,1))
