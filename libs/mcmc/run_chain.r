@@ -14,7 +14,7 @@ run_chain <- function(
   log_target,
   init,
   n_iter,
-  proposal = proposal_gaussian_rw(Sigma = diag(0.01, 3)),
+  proposal,
   adapt = adapt_none()
 ) {
 
@@ -27,7 +27,7 @@ run_chain <- function(
   accept  <- logical(n_iter)
 
   # Initialize proposal state
-  prop_state <- proposal$init(param)
+  prop_state <- proposal$init_state(param)
 
   for (i in seq_len(n_iter)) {
 

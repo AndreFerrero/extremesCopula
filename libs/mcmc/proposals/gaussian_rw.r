@@ -16,9 +16,11 @@ proposal_gaussian_rw <- function(Sigma) {
     #'
     #' @param param Initial parameter vector
     #' @return List storing proposal state (e.g. covariance)
-    init = function(param) {
+    init_state = function(param) {
       list(
-        Sigma = Sigma
+        Sigma0 = Sigma,
+        Sigma  = Sigma,
+        scale  = 1
       )
     },
 

@@ -1,10 +1,9 @@
 #' Haario adaptive covariance scheme
 #'
 #' @param eps Small jitter added to covariance diagonal
-#' @param target_accept Target acceptance rate
 #'
 #' @return Adaptation object
-adapt_haario <- function(eps = 1e-6, target_accept = 0.234) {
+adapt_haario <- function(eps = 1e-6) {
 
   list(
 
