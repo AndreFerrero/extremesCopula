@@ -29,8 +29,6 @@ build_semibsl_logposterior <- function(
   # Precompute observed summary statistics
   y_obs <- sum_stats(data)
 
-  simulator <- simulator(copula, margin, param_map)
-
   function(param_in) {
 
     # Apply inverse transform if needed
