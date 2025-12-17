@@ -6,7 +6,7 @@
 #' @param proposal Proposal object
 #' @param adapt Adaptation object
 #'
-#' @return List with samples matrix and acceptance rate
+#' @return List with samples matrix, acceptance rate and converged state information
 
 source("libs/packages.R")
 
@@ -15,6 +15,7 @@ run_chain <- function(
   init,
   n_iter,
   proposal,
+  engine_step = mh_step(),
   adapt = adapt_none()
 ) {
 
@@ -35,7 +36,7 @@ run_chain <- function(
   for (i in seq_len(n_iter)) {
 
     # MH step, returns proposal with acceptance and logposterior info
-    step <- mh_step(
+    step <- engine_step(
       param = param,
       logpost = logpost,
       log_target = log_target,
