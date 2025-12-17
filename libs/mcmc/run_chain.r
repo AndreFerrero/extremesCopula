@@ -15,8 +15,8 @@ run_chain <- function(
   init,
   n_iter,
   proposal,
-  engine_step = mh_step(),
-  adapt = adapt_none()
+  engine_step = mh_step,
+  adapt = adapt_none
 ) {
 
   p <- length(init)
