@@ -8,31 +8,41 @@ source("libs/packages.R")
 #' @param sum_stats Function: computes summary statistics from simulated data
 #' @param n_sim Number of simulations per likelihood evaluation
 #' @param log_prior Function: returns log prior for param
-#' @param transform List of transformation functions (optional):
-#'        - to_unconstrained, to_natural, log_jacobian
+#' @param transform function to transform parameters in unconstrained space
+#' @param inverse_transform function to transform parameters in the original space
+#' @param log_jacobian jacobian function of the transformation
 #'
 #' @return Function(param) -> log-posterior
 build_semibsl_logposterior <- function(
+  copula, margin, param_map,
+  data,
   simulator,
   sum_stats,
   n_sim,
-  log_prior,
-  to_unconstrained = NULL,
-  to_natural = NULL,
+  transform = NULL,
+  inverse_transform = NULL,
   log_jacobian = NULL,
-  data = NULL
+  margin_prior = NULL,
+  copula_prior = NULL
 ) {
 
   # Precompute observed summary statistics
   y_obs <- sum_stats(data)
 
+  simulator <- simulator(copula, margin, param_map)
+
   function(param_in) {
 
     # Apply inverse transform if needed
-    param <- if (!is.null(to_natural)) to_natural(param_in) else param_in
+    param <- if (!is.null(inverse_transform)) inverse_transform(param_in) else param_in
 
-    # Prior
-    logprior <- log_prior(param)
+    param_m <- param[param_map$margin]
+    param_c <- param[param_map$copula]
+
+    # 1. Prior
+    logprior <- copula$log_prior(param_c) +
+          margin$log_prior(param_m)
+    
     if (!is.finite(logprior)) return(-Inf)
 
     # Simulate n_sim datasets and compute summary statistics

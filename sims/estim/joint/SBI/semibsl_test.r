@@ -29,18 +29,18 @@ param_map <- list(margin = c("mu", "sigma"), copula = "theta")
 simulator <- build_simulator(copula_gumbel, margin_lognormal, param_map)
 
 set.seed(123)
-true_param <- c(mu = 0, sigma = 1, theta = 3)
+true_param <- c(mu = 0, sigma = 1, theta = 2)
 n_obs <- 1000
 X <- simulator(true_param, n_obs)
 
 # =============================================================================
 # 2. Build log-posterior
 # =============================================================================
-to_unconstrained <- function(param) {
+g <- function(param) {
   c(param["mu"], log(param["sigma"]), log(param["theta"] - 1))
 }
 
-from_unconstrained <- function(phi) {
+g_inv <- function(phi) {
   param <- c(
     mu    = phi[1],
     sigma = exp(phi[2]),
@@ -51,6 +51,15 @@ from_unconstrained <- function(phi) {
   param
 }
 
+fn_sum_stats <- function(x) {
+    m <- median(x)
+    md <- mad(x)
+    if (md == 0) md <- 1e-6
+
+    # Standardized Max (Skewed statistic)
+    s_max <- (max(x) - m) / md
+    return(c(m, md, s_max))
+}
 
 log_jacobian <- function(phi) phi[2] + phi[3]
 
@@ -59,24 +68,22 @@ logpost <- build_semibsl_logposterior(
   sum_stats = fn_sum_stats,
   n_sim = 200,
   log_prior = fn_log_prior,
-  transform = list(
-    to_unconstrained = to_unconstrained,
-    to_natural = to_natural,
-    log_jacobian = log_jacobian
-  ),
-  obs_data = X
+  transform = g,
+  inverse_transform = g_inv,
+  log_jacobian = log_jacobian,
+  data = X
 )
 
 # =============================================================================
 # 3. Define proposal and run chain
 # =============================================================================
-phi_init <- to_unconstrained(c(mu = 0.5, sigma = 0.8, theta = 2.5))
+phi_init <- g(c(mu = 0, sigma = 1, theta = 2))
 proposal <- proposal_gaussian_rw(Sigma = diag(0.01, 3))
 
 res <- run_chain(
   log_target = logpost,
   init = phi_init,
-  n_iter = 20000,
+  n_iter = 10000,
   proposal = proposal,
   adapt = adapt_robbins_monro(target_accept = 0.234)
 )
@@ -94,16 +101,22 @@ print(colMeans(samples_natural[10000:20000, ]))
 # Traceplot
 
 # Arrange 1 row and 3 columns
-par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))  # smaller margins for tighter plots
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1)) # smaller margins for tighter plots
 
-plot(samples_natural[, "mu"], type = "l",
-     ylab = "mu", xlab = "Iteration", main = "Trace of mu")
+plot(samples_natural[, "mu"],
+  type = "l",
+  ylab = "mu", xlab = "Iteration", main = "Trace of mu"
+)
 
-plot(samples_natural[, "sigma"], type = "l",
-     ylab = "sigma", xlab = "Iteration", main = "Trace of sigma")
+plot(samples_natural[, "sigma"],
+  type = "l",
+  ylab = "sigma", xlab = "Iteration", main = "Trace of sigma"
+)
 
-plot(samples_natural[, "theta"], type = "l",
-     ylab = "theta", xlab = "Iteration", main = "Trace of theta")
+plot(samples_natural[, "theta"],
+  type = "l",
+  ylab = "theta", xlab = "Iteration", main = "Trace of theta"
+)
 
 # Reset par
-par(mfrow = c(1,1))
+par(mfrow = c(1, 1))
