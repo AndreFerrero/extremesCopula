@@ -17,21 +17,19 @@ build_semibsl_logposterior <- function(
   sum_stats,
   n_sim,
   log_prior,
-  transform = list(
-    to_unconstrained = NULL,
-    to_natural = NULL,
-    log_jacobian = NULL
-  ),
-  obs_data = NULL
+  to_unconstrained = NULL,
+  to_natural = NULL,
+  log_jacobian = NULL,
+  data = NULL
 ) {
 
   # Precompute observed summary statistics
-  y_obs <- sum_stats(obs_data)
+  y_obs <- sum_stats(data)
 
   function(param_in) {
 
     # Apply inverse transform if needed
-    param <- if (!is.null(transform$to_natural)) transform$to_natural(param_in) else param_in
+    param <- if (!is.null(to_natural)) to_natural(param_in) else param_in
 
     # Prior
     logprior <- log_prior(param)
@@ -40,7 +38,7 @@ build_semibsl_logposterior <- function(
     # Simulate n_sim datasets and compute summary statistics
     sim_stats <- matrix(NA, nrow = n_sim, ncol = length(y_obs))
     for (i in seq_len(n_sim)) {
-      x_sim <- simulator(param, length(obs_data))
+      x_sim <- simulator(param, length(data))
       if (any(is.na(x_sim))) return(-Inf)
       sim_stats[i, ] <- sum_stats(x_sim)
     }
@@ -81,7 +79,7 @@ build_semibsl_logposterior <- function(
     total_loglik <- loglik_marg + loglik_copula
 
     # Jacobian adjustment if in transformed space
-    logjac <- if (!is.null(transform$log_jacobian)) transform$log_jacobian(param_in) else 0
+    logjac <- if (!is.null(log_jacobian)) log_jacobian(param_in) else 0
 
     logprior + total_loglik + logjac
   }
