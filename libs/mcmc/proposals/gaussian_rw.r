@@ -1,11 +1,11 @@
 #' Gaussian random-walk proposal
 #'
-#' @param Sigma Initial proposal covariance matrix (p x p)
+#' @param Sigma0 Initial proposal covariance matrix (p x p)
 #'
 #' @return A proposal object with:
 #'   - init_state(param): initializes internal proposal state
 #'   - propose(param, state): proposes new parameter vector
-proposal_gaussian_rw <- function(Sigma) {
+proposal_gaussian_rw <- function(Sigma0) {
 
   list(
     #' Initialize proposal state
@@ -13,9 +13,10 @@ proposal_gaussian_rw <- function(Sigma) {
     #' @return List storing proposal state
     init_state = function(param) {
       list(
-        Sigma  = Sigma,              # current covariance used for proposals
-        Sigma0 = Sigma,              # reference covariance for scaling
-        cov    = diag(1e-6, length(param)), # empirical covariance
+        Sigma  = Sigma0,              # current covariance used for proposals
+        Sigma0 = Sigma0,              # reference covariance for scaling
+        cov    = diag(1e-3, length(param))
+,              # empirical covariance
         mean   = param,              # running mean of chain
         t      = 1,                  # iteration counter
         scale  = 1                   # Robbins–Monro scale
