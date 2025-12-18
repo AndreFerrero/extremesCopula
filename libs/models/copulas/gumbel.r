@@ -26,7 +26,7 @@ copula_gumbel <- list(
   log_prior = function(theta, a = 2, b = 1) {
     if (theta <= 1) return(-Inf)
     dgamma(theta - 1, a, b, log = TRUE)
-  }
+  },
 
   diag = function(u, theta) {
     n <- length(u)

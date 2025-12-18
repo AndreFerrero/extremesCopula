@@ -38,7 +38,7 @@ copula_clayton <- list(
   log_prior = function(theta, a = 2, b = 1) {
     if (theta <= 0) return(-Inf)
     dgamma(theta, shape = a, rate = b, log = TRUE)
-  }
+  },
 
   diag = function(u, theta) {
     n <- length(u)
