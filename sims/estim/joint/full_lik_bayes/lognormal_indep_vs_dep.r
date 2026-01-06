@@ -157,6 +157,7 @@ full_joint_lik <- here("sims", "estim", "joint", "full_lik_bayes")
 res_full_joint_lik <- here(full_joint_lik, "res")
 
 save(res_par_dep, res_par_indep, file = here(res_full_joint_lik, "indep_vs_dep_4chains_10kiter_haario_lognorm_gumbel.Rdata"))
+load(here(res_full_joint_lik, "indep_vs_dep_4chains_10kiter_haario_lognorm_gumbel.Rdata"))
 
 burn_in <- n_mcmc/2
 # burn_in <- 0
@@ -164,34 +165,30 @@ mcmc_clean_indep <- window(res_par_indep, start = burn_in + 1, thin = 1)
 mcmc_clean_dep <- window(res_par_dep, start = burn_in + 1, thin = 1)
 
 plot(mcmc_clean_dep, density = FALSE)
+plot(mcmc_clean_indep, density = FALSE)
 
-# Arrange 1 row and 3 columns
-par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))  # smaller margins for tighter plots
+samples_dep <- as.matrix(mcmc_clean_dep)
+samples_indep <- as.matrix(mcmc_clean_indep)
 
-plot(as.matrix(mcmc_clean_indep[, "mu"]), type = "l",
-     ylab = "mu", xlab = "Iteration", main = "Trace of mu")
+acf(samples_dep)
+acf(samples_indep)
 
-plot(as.matrix(mcmc_clean_indep[, "sigma"]), type = "l",
-     ylab = "sigma", xlab = "Iteration", main = "Trace of sigma")
-
-# Reset par
-par(mfrow = c(1,1))
-
-
-summary(res_par_dep)
+summary(mcmc_clean_dep)
+summary(mcmc_clean_indep)
 
 # =============================================================================
 # 4. Recover Limit Distribution G
 # =============================================================================
 
 # Define grid and helper function
-y_grid <- seq(0.01, 100, length.out = 200)
+y_grid_dep <- seq(0.01, 40, length.out = 200)
+y_grid_indep <- seq(0.01, 100, length.out = 200)
 
 compute_G <- function(params, grid, n) {
   # params: vector with mu, sigma, and optionally theta
   mu    <- params["mu"]
   sigma <- params["sigma"]
-  theta <- if("theta" %in% names(params)) params["theta"] else 1
+  theta <- if("theta" %in% colnames(params)) params["theta"] else 1
   
   F_y   <- plnorm(grid, meanlog = mu, sdlog = sigma)
   F_y   <- pmin(pmax(F_y, 1e-15), 1 - 1e-15)
@@ -203,12 +200,12 @@ compute_G <- function(params, grid, n) {
 }
 
 # --- Calculate G for all posterior draws ---
-G_dep   <- t(apply(samples_dep, 1, compute_G, grid = y_grid, n = n_obs))
-G_indep <- t(apply(samples_indep, 1, compute_G, grid = y_grid, n = n_obs))
+G_dep   <- t(apply(samples_dep, 1, compute_G, grid = y_grid_dep, n = n_obs))
+G_indep <- t(apply(samples_indep, 1, compute_G, grid = y_grid_indep, n = n_obs))
 
 # --- True G for comparison ---
-G_true_dep <- compute_G(true_param_dep, y_grid, n_obs)
-G_true_indep <- compute_G(true_param_indep, y_grid, n_obs)
+G_true_dep <- compute_G(true_param_dep, y_grid_dep, n_obs)
+G_true_indep <- compute_G(true_param_indep, y_grid_indep, n_obs)
 
 # =============================================================================
 # 5. Visualization
@@ -217,8 +214,8 @@ G_true_indep <- compute_G(true_param_indep, y_grid, n_obs)
 summarize_G <- function(G_mat) {
   list(
     mean   = colMeans(G_mat),
-    lower  = apply(G_mat, 2, quantile, 0.05),
-    upper  = apply(G_mat, 2, quantile, 0.95)
+    lower  = apply(G_mat, 2, quantile, 0.1),
+    upper  = apply(G_mat, 2, quantile, 0.9)
   )
 }
 
@@ -227,25 +224,23 @@ stats_indep <- summarize_G(G_indep)
 
 par(mfrow = c(1, 2))
 # Theta = 2
-plot(y_grid, G_true_dep, type = "l", lwd = 2, lty = 2, col = "red",
+plot(y_grid_dep, G_true_dep, type = "l", lwd = 2, lty = 2, col = "red",
      ylim = c(0, 1), xlab = "y", ylab = expression(P(M[n] <= y)),
      main = "Maxima Distribution G, theta = 2")
 
 # Plot Dependent Model Posterior
-lines(y_grid, stats_dep$mean, col = "blue", lwd = 2)
-polygon(c(y_grid, rev(y_grid)), c(stats_dep$lower, rev(stats_dep$upper)),
+lines(y_grid_dep, stats_dep$mean, col = "blue", lwd = 2)
+polygon(c(y_grid_dep, rev(y_grid_dep)), c(stats_dep$lower, rev(stats_dep$upper)),
         col = rgb(0, 0, 1, 0.1), border = NA)
 
 # Theta = 1
-plot(y_grid, G_true_indep, type = "l", lwd = 2, lty = 2, col = "red",
+plot(y_grid_indep, G_true_indep, type = "l", lwd = 2, lty = 2, col = "red",
      ylim = c(0, 1), xlab = "y", ylab = expression(P(M[n] <= y)),
      main = "Maxima Distribution G, theta = 1")
 
 # Plot Independent Model Posterior
-lines(y_grid, stats_indep$mean, col = "darkgreen", lwd = 2)
+lines(y_grid_indep, stats_indep$mean, col = "darkgreen", lwd = 2)
 
-polygon(c(y_grid, rev(y_grid)), c(stats_indep$lower, rev(stats_indep$upper)),
+polygon(c(y_grid_indep, rev(y_grid_indep)), c(stats_indep$lower, rev(stats_indep$upper)),
         col = rgb(0, 0, 1, 0.1), border = NA)
 par(mfrow = c(1, 1))
-
-
