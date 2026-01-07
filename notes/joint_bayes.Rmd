@@ -135,7 +135,7 @@ We will call the full parameter vector:
 To sample from this posterior, a simple algorithm is a Random Walk Metropolis–Hastings. Crucial is the proposal covariance $\Sigma_0$ set at the beginning. This determines the efficiency of the sampler while exploring the posterior distribution. Higher variance in the proposals implies the sampler will take with higher probability further steps, moving quicker around the posterior space but with a higher probability of ending up in regions of low posterior probability, increasing therefore the risk of rejection. In contrast, smaller proposal variance induces the sampler to take shorter steps, decreasing the risk of being rejected but at the same time exploring the posterior space more slowly. A good balance needs to be found and no simple solution exists.
 
 \bigskip
-\noindent\textbf{Algorithm 1: Block Metropolis--Hastings}
+\noindent\textbf{Algorithm 1: Metropolis--Hastings}
 
 \begin{enumerate}
 \item \textbf{Initialisation:}
@@ -189,13 +189,9 @@ The first one simply starts by an arbitrary covariance and updates it by computi
 
 Care must be taken when using adaptive methods as theoretical guarantees of ergodicity require some assumptions to be met, one of which is for example diminishing adaptation, to ensure that after a while adaptation practically stops and we ensure the Markov Chain will converge to its stationary distribution.
 
-## 2.2 Simulation Based Inference
+## 2.2 Joint Copula Likelihood Intractability
 
-This branch of Bayesian inference aims at overcoming the impossibility of evaluating Bayesian models when the likelihood is intractable. The key ingredient is being able to (efficienciently) sample from our model to produce synthetic data that can be 
-
-## 2.2.1 Likelihood Intractability
-
-The MCMC scheme used so far requires being able to evaluate the loglikelihood, and therefore the log density of the copula, to compute the acceptance probability $\alpha$. However, defining a copula over the entire set of variables leads to numerical issues in evaluating the likelihood. This implies that the likelihood is intractable after a certain number of observations.
+The loglikelihood of our model is intractable due to the log density of the copula. After a certain sample size, this quantity cannot be easily computed, making inference impossible even for a moderately big sample.
 
 ```{r, error=TRUE}
 library(copula)
@@ -209,4 +205,10 @@ U <- as.numeric(rCopula(1, cop))   # true uniforms
 
 dCopula(U, gumbelCopula(theta_true, dim = n))
 ```
+
+## 2.3 Simulation Based Inference
+
+This branch of Bayesian inference overcomes the problem of intractable likelihood that makes posterior sampling otherwise impossible. Indeed, to compute $\alpha$ the likelihood needs to be evaluated for the proposed parameter $\phi^*$.
+
+The main idea is to (efficiently) sample from the model multiple times and to summarise the obtained samples with summary statistics that are informative about the parameters of interest. With the Bayesian Synthetic Likelihood (BSL) approach, the joint distribution of the summary statistics is used to approximate the likelihood for the proposed parameter vector.
 
