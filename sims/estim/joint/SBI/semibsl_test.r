@@ -8,6 +8,7 @@ source("libs/packages.R")
 # Load models
 source("libs/models/copulas/gumbel.R")
 source("libs/models/margins/lognormal.R")
+source("libs/models/builders/maxima_distribution.r")
 
 # Load builders
 source("libs/models/builders/simulator.R")
@@ -17,6 +18,7 @@ source("libs/models/builders/synthetic_gaussian_bsl.r")
 
 # Load MCMC machinery
 source("libs/mcmc/run_chain.R")
+source("libs/mcmc/run_parallel_chain.R")
 source("libs/mcmc/engines/metropolis_hastings.R")
 source("libs/mcmc/proposals/gaussian_rw.R")
 source("libs/mcmc/adaptation/none.R")
@@ -24,7 +26,7 @@ source("libs/mcmc/adaptation/haario.R")
 source("libs/mcmc/adaptation/robbins_monro.R")
 source("libs/mcmc/adaptation/hybrid_haario_rm.R")
 
-# =============================================================================
+#=============================================================================
 # 1. Simulate data using the simulator
 # =============================================================================
 param_map <- list(margin = c("mu", "sigma"), copula = "theta")
@@ -57,7 +59,6 @@ med_mad_max <- function(x) {
   m <- median(x)
   md <- mad(x)
   if (md == 0) md <- 1e-6
-  smax <- (max(x) - m) / md
   raw_max <- max(x)
   c(m, md, raw_max)
 }
@@ -70,7 +71,7 @@ logpost <- build_bsl_logposterior(
   data = X,
   simulator = simulator,
   sum_stats = med_mad_max,
-  n_sim = 150,
+  n_sim = 200,
   synthetic_loglik = synthetic_semibsl,
   inverse_transform = g_inv,
   log_jacobian = log_jacobian
@@ -81,44 +82,74 @@ logpost <- build_bsl_logposterior(
 # =============================================================================
 phi_init <- g(c(mu = 0, sigma = 1, theta = 2))
 p <- 3
-Sigma0 <- matrix(0.1, p, p)
-diag(Sigma0) <- 1
+# Sigma0 <- diag(0.001, p, p)
+Sigma0 <- matrix(
+  c(0.56, -0.12, 0.038,
+    -0.12, 0.08, 0.09,
+    0.038, 0.09, 0.23), nrow = p, ncol = p, byrow = TRUE)
+
 proposal <- proposal_gaussian_rw(Sigma0 = Sigma0)
 
 res <- run_chain(
   log_target = logpost,
   init = phi_init,
-  n_iter = 10000,
+  n_iter = 20000,
   proposal = proposal,
-  adapt = adapt_haario()
+  adapt = adapt_none()
+)
+
+init_list <- list(
+  init_1 = g(c(mu = 0, sigma = 1, theta = 2)),
+  init_2 = g(c(mu = 0.5, sigma = 0.5, theta = 1.5)),
+  init_3 = g(c(mu = -0.5, sigma = 1.5, theta = 2.5)),
+  init_4 = g(c(mu = 1, sigma = 2, theta = 3))
+)
+
+res_par <- run_parallel_chains(
+  log_target = logpost,
+  init_values = init_list,
+  n_iter = 20000,
+  proposal = proposal,
+  n_cores = 4,
+  adapt = adapt_none(),
+  transform = g_inv,
+  export = c("g_inv", "margin_lognormal", "copula_gumbel",
+  "simulator", "synthetic_semibsl", "log_jacobian", "Sigma0", "mh_step")
 )
 
 sbi_dir <- here("sims", "estim", "joint", "SBI")
 sbi_res_dir <- here(sbi_dir, "res")
 
-# save(res, file = here(sbi_res_dir, "semibsl_10kruns_150sims_1kobs_adapthaario.Rdata"))
-load(here(sbi_res_dir, "semibsl_10kruns_150sims_1kobs_adapthaario.Rdata"))
+# save(res, Sigma0, file = here(sbi_res_dir, "semibsl_20kruns_200sims_1kobs_adaptnone_sigma0finalhybrid.Rdata"))
+
+save(res_par, Sigma0, init_list, file = here(sbi_res_dir, "semibsl_4chains_20kruns_200sims_1kobs_adaptnone_sigma0finalhybrid.Rdata"))
+
+load(here(sbi_res_dir, "semibsl_20kruns_200sims_1kobs_adaptnone_sigma0finalhybrid.Rdata"))
 
 # Convert samples back to natural space
 samples_natural <- t(apply(res$samples, 1, g_inv))
 
 mcmc_samples <- mcmc(samples_natural)
 
-burn_in <- nrow(samples_natural)/2
+burn_in <- nrow(samples_natural)/3
 # burn_in <- 0
 mcmc_clean <- window(mcmc_samples, start = burn_in + 1, thin = 1)
 
+mcmc_clean_par <- window(res_par, start = burn_in + 1, thin = 1)
 # =============================================================================
 # 4. Quick summaries
 # =============================================================================
 res$conv
 
 cat("Acceptance rate:", res$accept_rate, "\n")
-cat("Posterior means:\n")
-print(colMeans(as.matrix(mcmc_clean)))
 
-effectiveSize(mcmc_clean)
+summary(mcmc_clean_par)
+effectiveSize(mcmc_clean_par)
+gelman.diag(mcmc_clean_par)
+
 # Traceplot
+plot(mcmc_clean)
+plot(mcmc_clean_par)
 
 # Arrange 1 row and 3 columns
 par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))  # smaller margins for tighter plots
@@ -167,3 +198,63 @@ abline(v = true_param[3], col = "red", lwd = 2, lty = 2)
 legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
 
 par(mfrow = c(1, 1))
+
+
+# =============================================================================
+# 4. Recover Limit Distribution G
+# =============================================================================
+
+G_dist <- build_maxima_distribution(
+  margin = margin_lognormal,
+  copula = copula_gumbel,
+  param_map = param_map
+)
+
+y_grid <- seq(0.01, 40, length.out = 200)
+
+G <- t(
+  apply(
+    as.matrix(mcmc_clean),
+    1,
+    G_dist,
+    y = y_grid,
+    n = n_obs
+  )
+)
+
+G_true <- G_dist(true_param, y_grid, n_obs)
+
+summarize_G <- function(G_mat) {
+  list(
+    mean   = colMeans(G_mat),
+    median = apply(G_mat, 2, median),
+    lower  = apply(G_mat, 2, quantile, 0.1),
+    upper  = apply(G_mat, 2, quantile, 0.9)
+  )
+}
+
+stats <- summarize_G(G)
+
+plot(y_grid, G_true, type = "l", lwd = 2, lty = 2, col = "red",
+     ylim = c(0, 1), xlab = "y", ylab = expression(P(M[n] <= y)),
+     main = "Maxima Distribution G, theta = 2")
+
+# Plot Dependent Model Posterior
+lines(y_grid, stats$mean, col = "blue", lwd = 2)
+
+lines(y_grid, stats$median, col = "orange", lwd = 2)
+
+polygon(c(y_grid, rev(y_grid)), c(stats$lower, rev(stats$upper)),
+        col = rgb(0, 0, 1, 0.1), border = NA)
+
+legend("bottomright",
+       legend = c("True G",
+                  "Posterior Mean",
+                  "Posterior Median",
+                  "80% Credible Interval"),
+       col = c("red", "blue", "orange", rgb(0, 0, 1, 0.1)),
+       lwd = c(2, 2, 2, NA),
+       lty = c(2, 1, 1, NA),
+       pch = c(NA, NA, NA, 15),
+       pt.cex = 2,
+       bty = "n")
