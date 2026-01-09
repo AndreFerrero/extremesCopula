@@ -3,33 +3,38 @@ source("libs/packages.R")
 copula_gumbel <- list(
 
   name = "gumbel",
+# --------------------------
+  # Generator (phi) and inverse generator (psi)
+  # --------------------------
+  inv_psi = function(u, theta) (-log(u))^theta,
+  psi = function(t, theta) exp(-t^(1/theta)),
 
+  # --------------------------
+  # 1. Simulate uniforms using latent variable method
+  # --------------------------
   simulate_u = function(theta, n) {
+    if (theta == 1) return(runif(n))  # independence
+    if (theta < 1) return(NULL)       # invalid
 
-  # --- Independence case ---
-  if (theta == 1) {
-    return(runif(n))
-  }
+    # --- simulate latent variable V ---
+    val_gamma <- (cos(pi / (2 * theta)))^theta
+    V <- stabledist::rstable(
+      n = 1,
+      alpha = 1 / theta,
+      beta  = 1,
+      gamma = val_gamma,
+      delta = 0,
+      pm    = 1
+    )
 
-  # --- Invalid parameter ---
-  if (theta < 1) return(NULL)
+    if (!is.finite(V) || V <= 0) return(NULL)
 
-  # --- Gumbel Archimedean simulation ---
-  val_gamma <- (cos(pi / (2 * theta)))^theta
+    # --- exponential variates ---
+    E <- rexp(n)
 
-  V <- stabledist::rstable(
-    n = 1,
-    alpha = 1 / theta,
-    beta  = 1,
-    gamma = val_gamma,
-    delta = 0,
-    pm    = 1
-  )
-
-  if (!is.finite(V) || V <= 0) return(NULL)
-
-  E <- rexp(n)
-  exp(-(E / V)^(1 / theta))
+    # --- apply inverse generator psi ---
+    U <- copula_gumbel$psi(E / V, theta)
+    U
   },
 
   log_density = function(u, theta) {
