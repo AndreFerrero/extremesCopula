@@ -19,7 +19,8 @@ proposal_gaussian_rw <- function(Sigma0) {
 ,              # empirical covariance
         mean   = param,              # running mean of chain
         t      = 1,                  # iteration counter
-        scale  = 1                   # Robbins–Monro scale
+        scale  = 1,                   # Robbins–Monro scale
+        stable_count = 0
       )
     },
 

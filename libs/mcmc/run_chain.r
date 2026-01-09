@@ -1,15 +1,3 @@
-#' Run a single MCMC chain
-#'
-#' @param log_target Function returning log post(param)
-#' @param init Initial parameter vector
-#' @param n_iter Number of MCMC iterations
-#' @param proposal Proposal object
-#' @param adapt Adaptation object
-#'
-#' @return List with samples matrix, acceptance rate and converged state information
-
-source("libs/packages.R")
-
 run_chain <- function(
   log_target,
   init,
@@ -21,51 +9,67 @@ run_chain <- function(
 
   p <- length(init)
 
-  param <- init
-  logpost  <- log_target(param)
+  param   <- init
+  logpost <- log_target(param)
 
   samples <- matrix(NA, n_iter, p)
   accept  <- logical(n_iter)
 
-  # Initialize proposal state (Sigma)
+  # Initialize proposal state
   prop_state <- proposal$init_state(param)
 
-  # Initialize progress bar
+  # Adaptation bookkeeping
+  adapting <- !identical(adapt, adapt_none())
+  burnin   <- NA_integer_
+
+  # Progress bar
   pb <- txtProgressBar(min = 0, max = n_iter, style = 3)
 
   for (i in seq_len(n_iter)) {
 
-    # MH step, returns proposal with acceptance and logposterior info
+    # MH step
     step <- engine_step(
-      param = param,
-      logpost = logpost,
+      param      = param,
+      logpost    = logpost,
       log_target = log_target,
-      proposal = proposal,
+      proposal   = proposal,
       prop_state = prop_state
     )
 
-    param <- step$param
-    logpost  <- step$logpost
-    accept[i] <- step$accept
-
-    # Adapt proposal
-    prop_state <- adapt$update(
-      prop_state, param, accept[i], i
-    )
-
+    param        <- step$param
+    logpost      <- step$logpost
+    accept[i]    <- step$accept
     samples[i, ] <- param
 
-    # Update progress bar
+    # Adapt only if still adapting
+    if (adapting) {
+
+      res <- adapt$update(prop_state, param, accept[i], i)
+      prop_state <- res$state
+
+      if (isTRUE(res$ready)) {
+        burnin   <- i
+        adapting <- FALSE
+        adapt    <- adapt_none()
+      }
+    }
+
     setTxtProgressBar(pb, i)
   }
 
   close(pb)
-  
   colnames(samples) <- names(init)
 
+  # If adaptation never stopped, treat whole chain as burn-in
+  if (is.na(burnin)) {
+    warning("Adaptation did not converge; entire chain treated as burn-in.")
+    burnin <- n_iter
+  }
+
   list(
-    samples = samples,
-    accept_rate = mean(accept),
-    conv_state = prop_state
+    samples      = samples,
+    burnin       = burnin,
+    accept_rate  = mean(accept),
+    conv_state   = prop_state
   )
 }
