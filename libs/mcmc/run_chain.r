@@ -4,7 +4,7 @@ run_chain <- function(
   n_iter,
   proposal,
   engine_step = mh_step,
-  adapt = adapt_none
+  adapt = adapt_none()
 ) {
 
   p <- length(init)
@@ -19,7 +19,7 @@ run_chain <- function(
   prop_state <- proposal$init_state(param)
 
   # Adaptation bookkeeping
-  adapting <- !identical(adapt, adapt_none())
+  adapting <- ifelse(adapt$type == "none", FALSE, TRUE)
   burnin   <- NA_integer_
 
   # Progress bar
