@@ -28,7 +28,7 @@ adapt_haario <- function(
         state$Sigma <- (2.38^2 / d) * (state$cov + eps * diag(d))
       }
 
-      list(state = state)
+      state
     }
   )
 }
