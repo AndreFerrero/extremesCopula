@@ -15,13 +15,13 @@ data/
 *.csv
 
 # -----------------------------
-# Quarto / R Markdown output
+# Quarto / R Markdown output (any folder depth)
 # -----------------------------
-*_cache/       # Quarto/Rmd caches
-*_files/       # Supporting files for HTML
-_site/         # Quarto website output
-_book/         # Quarto book output
-*_figures/     # optional: figures saved automatically
+**/*_cache/       # Quarto/Rmd caches
+**/*_files/       # Supporting files for HTML
+_site/            # Quarto website output
+_book/            # Quarto book output
+**/*_figures/     # optional: figures saved automatically
 
 # Rendered documents (optional)
 *.html
