@@ -1,20 +1,35 @@
-﻿# R
+﻿# -----------------------------
+# R artifacts
+# -----------------------------
 .Rhistory
 .RData
 .Rproj.user/
 
-# Data
+# -----------------------------
+# Data files / results
+# -----------------------------
 data/
 */results/
-*.csv
 *.rds
 *.RData
+*.csv
 
-*rdb
-*rdx
-*pdf
+# -----------------------------
+# Quarto / R Markdown output
+# -----------------------------
+*_cache/       # Quarto/Rmd caches
+*_files/       # Supporting files for HTML
+_site/         # Quarto website output
+_book/         # Quarto book output
+*_figures/     # optional: figures saved automatically
 
-# Logs
+# Rendered documents (optional)
+*.html
+*.pdf
+*.docx
+
+# -----------------------------
+# Logs / temporary files
+# -----------------------------
 *.log
-
-latex/build
+latex/build/
