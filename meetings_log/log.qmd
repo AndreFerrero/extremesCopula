@@ -1,0 +1,101 @@
+---
+title: "Supervisors Meeting Log"
+format: html
+toc: true
+toc-depth: 3
+---
+
+# 2025
+
+## November 2025
+
+### Meeting 06/11/2025
+**Attendees:** Andrea, Gwladys, Nicolas, Klaus  
+**Time:** 14:30 - 15:45  
+
+**Topics:** Review of the main paper ideas, proposal of some directions, suggestion of literature  
+
+**Description:**  
+- The first idea is to perform estimation on the copula parameters (parametric approach given a specific copula choice, e.g., Archimedean), after which estimation of the limiting distribution of the maxima should arise as a consequence of G = D o H.  
+- Nonparametric approaches are to be considered future work.
+
+**Main concern:**  
+- Estimation of H via standard methods might fail with dependent sequences violating the D(u_n) condition.
+
+**To-do:**  
+- Review Bayesian methodology for extremes, focusing on extremal index  
+- Review Archimedean copulas and their connection with exchangeable sequences  
+- Simulation studies to explore dependence in block maxima and inspect sensitivity of parameter estimation under strong dependence
+
+**Literature:**  
+- *Statistics of Extremes* by Berlaint et al.  
+- *Handbook on Statistics of Extremes* by de Carvalho et al.  
+- *Heavy tailed time series* by Soulier and Kulik  
+
+---
+
+### Meeting 10/11/2025
+**Attendees:** Andrea, Gwladys, Nicolas, Klaus, Eric  
+**Time:** 15:30 - 16:30  
+
+**Topics:** Review, Simulating copulas, Estimating F with dependence, Sherbrooke - Montpellier (4-5 June)  
+
+---
+
+### Meeting 17/11/2025
+**Attendees:** Andrea, Gwladys, Nicolas  
+**Time:** 16:00 - 17:30  
+
+**Topics:** Copula estimation with univariate data, proposal of some directions  
+
+**Description:**  
+- Estimation of copulas with a univariate sequence requires ad hoc tools; the `copula` package expects n × d structure (observations × dimension).  
+- Likelihood: `l() = log c(u1, ..., un)` with `c` the density of the copula.  
+- High-dimensional issues arise: evaluating density at `d > 220` fails with current functions.  
+
+**Proposed Approaches:**  
+1. Assume a Markov property and model pairs with bivariate copulas.  
+2. Use blocks of data (K × n_k) to estimate copula parameters with MLE.  
+3. Consider vine copulas.  
+
+**Methods:** Pairwise composite likelihood was mentioned as a potential estimation tool.  
+
+---
+
+## December 2025
+
+### Meeting 01/12/2025
+**Attendees:** Andrea, Klaus, Nicolas  
+**Time:** 16:00 - 17:30  
+
+**Topics:**  
+- Gumbel distortion on GEV parameters  
+- Sampling and identifiability problems in the joint copula model  
+- Possible direction on the copula-based Markov model  
+
+**Description:**  
+- Simulation shows Gumbel copula shape parameter is unaffected, but location and scale are distorted.  
+- Proposal: inspect distribution of B maxima and compare to theoretical results.  
+- Discussed copula-based Markov model: ergodicity, estimation of extremal index, Bayesian uncertainty propagation.
+
+---
+
+# 2026
+
+## January 2026
+
+### Meeting 12/01/2026
+**Attendees:** Andrea, Nicolas, Gwladys  
+**Time:** 16:00 - 17:30  
+
+**Topics:** Recap, fixing ideas and doubts on current and potential approaches, showing current results  
+
+**Description:**  
+- Likelihood intractability in high dimensions (n > 220 for Gumbel copula) motivates **Simulation-Based Inference**, specifically **Semiparametric Bayesian Synthetic Likelihood**.  
+- Sample from the model, summarize with informative statistics, approximate posterior from distribution of sampled statistics.  
+- Metropolis-Hastings step uses this synthetic posterior for acceptance ratio.  
+- Adaptive MCMC methods improve sampler efficiency (proposal covariance adaptation, targeting acceptance rate ~0.234).  
+- Fully parametric model (lognormal F, Gumbel copula θ) gives results on maxima distribution.  
+
+---
+

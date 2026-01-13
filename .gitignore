@@ -24,7 +24,8 @@ notes/**
 !notes/**/*.Rmd
 !notes/**/*.qmd
 
-
+meetings_log/**
+!meetings_log/**/*.qmd
 
 # Rendered documents (optional)
 *.html
