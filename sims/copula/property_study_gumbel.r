@@ -39,7 +39,7 @@ set.seed(123)
 # ------------------------------------------------------------
 n <- 1000
 n_rep <- 1000
-theta_vec <- c(1, 1.5, 2, 3, 5)
+theta_vec <- c(1, 1.5, 2, 3, 4, 5)
 param_base <- c(mu = 0, sigma = 1)
 u_prob <- 0.95
 
@@ -96,9 +96,10 @@ conditional_exceedance_study <- function(theta) {
     }
   }
   list(
-    unconditional = mean(unconditional_vals),
-    conditional = mean(cond_vals, na.rm = TRUE),
-    conditional_sd = sd(cond_vals, na.rm = TRUE)
+    unconditional_mean = mean(unconditional_vals, na.rm = TRUE),
+    unconditional_sd   = sd(unconditional_vals, na.rm = TRUE),
+    conditional_mean   = mean(cond_vals, na.rm = TRUE),
+    conditional_sd     = sd(cond_vals, na.rm = TRUE)
   )
 }
 
@@ -115,21 +116,16 @@ edf_variance_study <- function(theta, x0 = 1) {
   )
 }
 
-summary_variability_study <- function(theta) {
+means_variability_study <- function(theta) {
   means <- numeric(n_rep)
-  q95 <- numeric(n_rep)
   for (r in 1:n_rep) {
     X <- simulator(c(param_base, theta = theta), n)
     means[r] <- mean(X)
-    q95[r] <- quantile(X, 0.95)
   }
   list(
     mean_of_means = mean(means),
     var_of_means = var(means),
-    sd_of_means = sd(means),
-    mean_q95 = mean(q95),
-    var_q95 = var(q95),
-    sd_q95 = sd(q95)
+    sd_of_means = sd(means)
   )
 }
 
@@ -143,7 +139,7 @@ for (theta in theta_vec) {
     exceedances = exceedance_count_study(theta),
     conditional = conditional_exceedance_study(theta),
     edf_var = edf_variance_study(theta),
-    summaries = summary_variability_study(theta)
+    means = means_variability_study(theta)
   )
 }
 
@@ -158,64 +154,47 @@ comparison <- data.frame(
   spacing_sd = sapply(results, function(x) x$order_stats$spacing_sd),
   dispersion_mean = sapply(results, function(x) x$exceedances$dispersion),
   dispersion_sd = sapply(results, function(x) x$exceedances$sd_count),
-  cond_mean = sapply(results, function(x) x$conditional$conditional),
+  cond_mean = sapply(results, function(x) x$conditional$conditional_mean),
   cond_sd = sapply(results, function(x) x$conditional$conditional_sd),
-  var_mean = sapply(results, function(x) x$summaries$var_of_means),
-  var_sd = sapply(results, function(x) x$summaries$sd_of_means)
+  uncond_mean = sapply(results, function(x) x$conditional$unconditional_mean),
+  uncond_sd = sapply(results, function(x) x$conditional$unconditional_sd),
+  var_mean = sapply(results, function(x) x$means$var_of_means),
+  sd_mean = sapply(results, function(x) x$means$sd_of_means)
 )
-
-print(comparison)
+comparison$ratio_prob <- comparison$cond_mean / comparison$uncond_mean
 
 # ------------------------------------------------------------
-# Plot statistics with uncertainty bands
+# Prepare main stats for plotting
 # ------------------------------------------------------------
-library(ggplot2)
-library(tidyr)
-# Select only the main statistics for plotting
 plot_stats <- comparison %>%
-  select(theta, max_mean, spacing_mean, dispersion_mean, cond_mean, var_mean)
+  select(theta, max_mean, spacing_mean, dispersion_mean, cond_mean, var_mean, ratio_prob)
 
-# Pivot for ggplot
 plot_df <- plot_stats %>%
-  pivot_longer(cols = -theta, names_to = "stat", values_to = "value") %>%
-  mutate(
-    lower = case_when(
-      stat == "max_mean"     ~ value - comparison$max_sd,
-      stat == "spacing_mean" ~ value - comparison$spacing_sd,
-      stat == "dispersion_mean" ~ pmax(value - comparison$dispersion_sd, 0),
-      stat == "cond_mean"       ~ pmax(value - comparison$cond_sd, 0),
-      stat == "var_mean"        ~ pmax(value - comparison$var_sd, 0)
-    ),
-    upper = case_when(
-      stat == "max_mean"     ~ value + comparison$max_sd,
-      stat == "spacing_mean" ~ value + comparison$spacing_sd,
-      stat == "dispersion_mean" ~ value + comparison$dispersion_sd,
-      stat == "cond_mean"       ~ pmin(value + comparison$cond_sd, 1),
-      stat == "var_mean"        ~ value + comparison$var_sd
-    )
-  )
+  pivot_longer(cols = -theta, names_to = "stat", values_to = "value")
 
-# Rename stats
+# Rename stats for plotting
 stat_labels <- c(
   max_mean = "Mean Maximum",
   spacing_mean = "Mean Upper Spacing",
   dispersion_mean = "Dispersion of Exceedances",
   cond_mean = "Conditional Exceedance Probability",
-  var_mean = "Variance of Sample Mean"
+  var_mean = "Variance of Sample Mean",
+  ratio_prob = "Conditional / Unconditional Exceedance Probability"
 )
 plot_df$stat_label <- stat_labels[plot_df$stat]
 
-# Plot
+# ------------------------------------------------------------
+# Plot everything with uncertainty bands
+# ------------------------------------------------------------
 ggplot(plot_df, aes(x = theta, y = value)) +
   geom_line(aes(color = stat_label), size = 1.2) +
-  geom_ribbon(aes(ymin = lower, ymax = upper, fill = stat_label), alpha = 0.2) +
   geom_point(aes(color = stat_label), size = 2) +
   facet_wrap(~stat_label, scales = "free_y", ncol = 2) +
   theme_minimal(base_size = 14) +
   labs(
     x = expression(theta),
     y = "Statistic Value",
-    title = "Effect of Theta on Key Sample Statistics with Uncertainty Bands",
+    title = "Effect of Theta on Key Sample Statistics",
     color = "Statistic",
     fill = "Statistic"
   ) +
@@ -223,4 +202,3 @@ ggplot(plot_df, aes(x = theta, y = value)) +
     legend.position = "none",
     strip.text = element_text(face = "bold", size = 12)
   )
-
