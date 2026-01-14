@@ -340,7 +340,6 @@ stats_obs_df <- data.frame(
   value = as.numeric(stats_obs)
 )
 
-
 ggplot(stats_melt, aes(x = stat, y = value)) +
   geom_boxplot() +
   geom_point(data = data.frame(stat = names(stats_obs), value = stats_obs),
@@ -362,3 +361,64 @@ ggplot(data.frame(cond_exceed_post), aes(x = cond_exceed_post)) +
 matplot(X_post[,1:50], type = "l", col = rgb(0,0,1,0.2), lty = 1,
         ylab = "X", xlab = "Index", main = "Posterior Predictive Samples")
 lines(X, col = "red", lwd = 2)
+
+library(dplyr)
+
+stats_summary <- stats_post_df %>%
+  select(-replicate) %>%
+  summarise(across(everything(), list(
+    q05 = ~quantile(., 0.05, na.rm = TRUE),
+    q25 = ~quantile(., 0.25, na.rm = TRUE),
+    median = ~median(., na.rm = TRUE),
+    q75 = ~quantile(., 0.75, na.rm = TRUE),
+    q95 = ~quantile(., 0.95, na.rm = TRUE)
+  )))
+
+# Convert to long format for plotting
+library(tidyr)
+plot_df <- stats_summary %>%
+  pivot_longer(everything(),
+               names_to = c("stat", "quantile"),
+               names_sep = "_",
+               values_to = "value")
+
+ggplot(plot_df %>% filter(quantile %in% c("q05","q95","median")), 
+       aes(x = stat, y = value, group = stat)) +
+  geom_ribbon(aes(ymin = q05, ymax = q95), fill = "skyblue", alpha = 0.3) +
+  geom_point(aes(y = median), color = "blue", size = 3) +
+  geom_point(data = stats_obs_df, aes(x = stat, y = value), color = "red", size = 3) +
+  labs(title = "Posterior Predictive Summary with Quantile Bands",
+       subtitle = "Red = observed statistics")
+
+extreme_idx <- which(stats_post_df$max > quantile(stats_obs["max"], 0.99))
+X_extreme <- X_post[, extreme_idx]
+
+# Plot extreme draws separately
+matplot(X_extreme[,1:20], type = "l", col = rgb(1,0,0,0.3), lty = 1,
+        ylab = "X", xlab = "Index", main = "Extreme Posterior Predictive Draws")
+
+library(ggridges)
+
+df_ridges <- data.frame(
+  value = as.vector(X_post),
+  replicate = rep(1:n_post, each = n_sim)
+)
+
+ggplot(df_ridges, aes(x = value, y = factor(replicate))) +
+  geom_density_ridges(scale = 0.9, fill = "skyblue", alpha = 0.3) +
+  geom_vline(xintercept = X, color = "red", lwd = 1) +
+  labs(title = "Posterior Predictive Density Ridges",
+       subtitle = "Red lines = observed values")
+
+cond_exceed_post <- apply(X_post, 2, function(x) {
+  u <- quantile(X, 0.95)
+  exc <- which(x > u)
+  if(length(exc) >= 2) (length(exc)-1)/(length(x)-1) else NA
+})
+
+# Use robust histogram
+ggplot(data.frame(cond_exceed_post), aes(x = cond_exceed_post)) +
+  geom_histogram(bins = 30, fill = "skyblue", alpha = 0.5) +
+  geom_vline(xintercept = stats_obs["cond_exceed"], color = "red", size = 1.2) +
+  coord_cartesian(xlim = quantile(cond_exceed_post, c(0.01, 0.99), na.rm = TRUE)) +
+  labs(title = "Conditional Exceedance PPC (truncated to 1-99% quantiles)")
