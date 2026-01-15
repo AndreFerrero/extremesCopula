@@ -8,7 +8,7 @@ margin_t <- list(
   # --------------------------
   # Quantile function
   # --------------------------
-  simulate = function(u, param) {
+  quantile = function(u, param) {
     # u: vector of uniforms
     # param: list with mu (location), sigma (scale), df (degrees of freedom)
     qt(u, df = param["df"]) * param["sigma"] + param["mu"]
@@ -17,7 +17,7 @@ margin_t <- list(
   # --------------------------
   # Log-density
   # --------------------------
-  log_density = function(x, param) {
+  lpdf = function(x, param) {
     dt((x - param["mu"]) / param["sigma"], df = param["df"], log = TRUE) - log(param["sigma"])
   },
 

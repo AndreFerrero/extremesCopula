@@ -8,7 +8,7 @@ margin_frechet <- list(
   # --------------------------
   # Quantile function (inverse CDF)
   # --------------------------
-  simulate = function(u, param) {
+  quantile = function(u, param) {
     # param: scale = s > 0, shape = alpha > 0
     s <- param["scale"]
     alpha <- param["shape"]
@@ -19,7 +19,7 @@ margin_frechet <- list(
   # --------------------------
   # Log-density
   # --------------------------
-  log_density = function(x, param) {
+  lpdf = function(x, param) {
     s <- param["scale"]
     alpha <- param["shape"]
     if (any(x <= 0) || s <= 0 || alpha <= 0) return(-Inf)

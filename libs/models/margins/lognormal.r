@@ -2,11 +2,11 @@ margin_lognormal <- list(
 
   name = "lognormal",
 
-  simulate = function(u, param) {
+  quantile = function(u, param) {
     qlnorm(u, param["mu"], param["sigma"])
   },
 
-  log_density = function(x, param) {
+  lpdf = function(x, param) {
     dlnorm(x, param["mu"], param["sigma"], log = TRUE)
   },
 

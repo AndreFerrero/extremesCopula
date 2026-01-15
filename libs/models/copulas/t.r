@@ -8,7 +8,7 @@ copula_t <- list(
   # --------------------------
   # 1. Simulate uniforms along the diagonal
   # --------------------------
-  simulate_u = function(theta, n, df = 4) {
+  simulate = function(theta, n, df = 4) {
     # theta: equicorrelation along the diagonal (0 ≤ theta ≤ 1)
     # df: degrees of freedom of t-copula
     if(theta < 0 || theta > 1) stop("theta must be in [0,1]")
@@ -37,7 +37,7 @@ copula_t <- list(
   # --------------------------
   # 2. Log-density along the diagonal
   # --------------------------
-  log_density = function(u, theta, df = 4) {
+  lpdf = function(u, theta, df = 4) {
     # Exact log density (diagonal vector)
     n <- length(u)
     Sigma <- matrix(theta, n, n)

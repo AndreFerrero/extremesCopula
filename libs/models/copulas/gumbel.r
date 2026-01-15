@@ -12,7 +12,7 @@ copula_gumbel <- list(
   # --------------------------
   # 1. Simulate uniforms using latent variable method
   # --------------------------
-  simulate_u = function(theta, n) {
+  simulate = function(theta, n) {
     if (theta == 1) return(runif(n))  # independence
     if (theta < 1) return(NULL)       # invalid
 
@@ -37,7 +37,7 @@ copula_gumbel <- list(
     U
   },
 
-  log_density = function(u, theta) {
+  lpdf = function(u, theta) {
     copula::dCopula(u, copula::gumbelCopula(theta, dim = length(u)), log = TRUE)
   },
 

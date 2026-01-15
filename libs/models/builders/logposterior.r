@@ -37,8 +37,8 @@ build_logposterior <- function(copula, margin, param_map, data,
     u <- margin$cdf(data, param_m)
     u <- pmin(pmax(u, 1e-8), 1 - 1e-8)  # numerical stability
     
-    loglik <- sum(margin$log_density(data, param_m)) +
-          copula$log_density(u, param_c)
+    loglik <- sum(margin$lpdf(data, param_m)) +
+          copula$lpdf(u, param_c)
     
     # 3. Jacobian adjustment if in transformed space
     logjac <- if (!is.null(log_jacobian)) log_jacobian(param_init) else 0

@@ -26,7 +26,7 @@ build_logposterior_indep <- function(margin, param_map, data,
     # --- Likelihood ---
     # In the independent case, Log-Likelihood = sum( log f(x_i) )
     # There is no copula contribution because log(c(u)) = log(1) = 0
-    loglik <- sum(margin$log_density(data, param_m))
+    loglik <- sum(margin$lpdf(data, param_m))
     
     # --- Jacobian adjustment ---
     logjac <- if (!is.null(log_jacobian)) log_jacobian(param_init) else 0

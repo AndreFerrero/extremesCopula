@@ -14,7 +14,7 @@ copula_joe <- list(
   # --------------------------
   # 1. Simulate uniforms using latent variable method
   # --------------------------
-  simulate_u = function(theta, n) {
+  simulate = function(theta, n) {
 
     # Independence
     if (theta == 1) return(runif(n))
@@ -47,7 +47,7 @@ copula_joe <- list(
   # --------------------------
   # 2. Log-density using copula package
   # --------------------------
-  log_density = function(u, theta) {
+  lpdf = function(u, theta) {
     copula::dCopula(u, copula::joeCopula(theta, dim = length(u)), log = TRUE)
   },
 
