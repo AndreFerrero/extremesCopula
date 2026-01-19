@@ -5,7 +5,8 @@ run_chain <- function(
   proposal,
   burn_in,
   engine_step = mh_step,
-  adapt = adapt_none()
+  adapt = adapt_none(),
+  inv_transf = NULL
 ) {
   p <- length(init)
 
@@ -67,6 +68,14 @@ run_chain <- function(
   } else {
     NA_real_
   }
+
+  samples <- if (!is.null(inv_transf)) {
+            t(apply(samples, 1, inv_transf))
+        } else {
+            samples
+        }
+
+  samples <- mcmc(samples)
 
   list(
     samples = samples,
