@@ -3,9 +3,10 @@ run_parallel_chains <- function(
   init_values, # list of initial points (one per chain)
   n_iter,
   proposal,
+  burn_in = 0,
   n_cores,
   adapt = NULL,
-  transform = NULL, # inverse transform (e.g. g_inv_dep)
+  inv_transf = NULL, # inverse transform (e.g. g_inv_dep)
   export = NULL # objects/functions to export to workers
 ) {
     library(parallel)
@@ -29,7 +30,7 @@ run_parallel_chains <- function(
             "log_target",
             "proposal",
             "adapt",
-            "transform",
+            "inv_transf",
             "param_map",
             export
         )),
@@ -43,11 +44,12 @@ run_parallel_chains <- function(
             init       = init,
             n_iter     = n_iter,
             proposal   = proposal,
+            burn_in = burn_in,
             adapt      = adapt
         )
 
-        samples <- if (!is.null(transform)) {
-            t(apply(res$samples, 1, transform))
+        samples <- if (!is.null(inv_transf)) {
+            t(apply(res$samples, 1, inv_transf))
         } else {
             res$samples
         }
