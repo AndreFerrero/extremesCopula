@@ -52,5 +52,5 @@ copula_gumbel <- list(
     if (theta == 1) return(u^n)           # independence case
     
     u^(n^(1/theta))
-}
+  }
 )
