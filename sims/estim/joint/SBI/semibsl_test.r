@@ -27,15 +27,15 @@ source("libs/mcmc/adaptation/haario.R")
 source("libs/mcmc/adaptation/robbins_monro.R")
 source("libs/mcmc/adaptation/hybrid_haario_rm.R")
 
-#=============================================================================
+# =============================================================================
 # 1. Simulate data using the simulator
 # =============================================================================
 param_map <- list(margin = c("mu", "sigma"), copula = "theta")
 simulator <- build_simulator(copula_gumbel, margin_lognormal, param_map)
 
 set.seed(123)
-true_param <- c(mu = 0, sigma = 1, theta = 2)
-n_obs <- 1000
+true_param <- c(mu = 0, sigma = 1, theta = 4)
+n_obs <- 5000
 X <- simulator(true_param, n_obs)
 
 # =============================================================================
@@ -83,7 +83,7 @@ semibsl_logpost <- build_bsl_logposterior(
 # =============================================================================
 phi_init <- g(c(mu = 0, sigma = 1, theta = 2))
 p <- 3
-Sigma0 <- diag(0.001, p, p)
+Sigma0 <- diag(0.1, p, p)
 # Sigma0 <- matrix(
 #   c(0.56, -0.12, 0.038,
 #     -0.12, 0.08, 0.09,
@@ -91,47 +91,55 @@ Sigma0 <- diag(0.001, p, p)
 
 proposal <- proposal_gaussian_rw(Sigma0 = Sigma0)
 
+n_iter <- 2000
+
 res <- run_chain(
   log_target = semibsl_logpost,
   init = phi_init,
-  n_iter = 25000,
+  n_iter = n_iter,
   proposal = proposal,
-  burn_in = 10000,
-  adapt = adapt_haario(t0 = 1000)
+  burn_in = n_iter / 2,
+  adapt = adapt_none(),
+  inv_transf = g_inv()
 )
 
-# init_list <- list(
-#   init_1 = g(c(mu = 0, sigma = 1, theta = 2)),
-#   init_2 = g(c(mu = 0.5, sigma = 0.5, theta = 1.5)),
-#   init_3 = g(c(mu = -0.5, sigma = 1.5, theta = 2.5)),
-#   init_4 = g(c(mu = 1, sigma = 2, theta = 3))
-# )
+init_list <- list(
+  init_1 = g(c(mu = 0, sigma = 1, theta = 2)),
+  init_2 = g(c(mu = 0.5, sigma = 0.5, theta = 1.5)),
+  init_3 = g(c(mu = -0.5, sigma = 1.5, theta = 2.5)),
+  init_4 = g(c(mu = 1, sigma = 2, theta = 3))
+)
 
-# res_par <- run_parallel_chains(
-#   log_target = logpost,
-#   init_values = init_list,
-#   n_iter = 20000,
-#   proposal = proposal,
-#   n_cores = 4,
-#   adapt = adapt_none(),
-#   transform = g_inv,
-#   export = c("g_inv", "margin_lognormal", "copula_gumbel",
-#   "simulator", "synthetic_semibsl", "log_jacobian", "Sigma0", "mh_step")
-# )
+res_par <- run_parallel_chains(
+  log_target = semibsl_logpost,
+  init_values = init_list,
+  n_iter = n_iter,
+  proposal = proposal,
+  burn_in = n_iter / 2,
+  n_cores = 4,
+  adapt = adapt_none(),
+  transform = g_inv,
+  export = c(
+    "g_inv", "margin_lognormal", "copula_gumbel",
+    "simulator", "synthetic_semibsl", "log_jacobian", "Sigma0", "mh_step"
+  )
+)
 
 sbi_dir <- here("sims", "estim", "joint", "SBI")
 sbi_res_dir <- here(sbi_dir, "res")
 
-# save(res, Sigma0, file = here(sbi_res_dir, "semibsl_25kruns_10kburnin_with_haario_200sims_1kobs.Rdata"))
+save(res, Sigma0, file = here(sbi_res_dir, "semibsl_10kruns_5kburnin_adaptnone_200sims_5kobs_theta4.Rdata"))
 
 # save(res_par, Sigma0, init_list, file = here(sbi_res_dir, "semibsl_4chains_20kruns_200sims_1kobs_adaptnone_sigma0finalhybrid.Rdata"))
 
 load(here(sbi_res_dir, "semibsl_25kruns_10kburnin_with_haario_200sims_1kobs.Rdata"))
 
 # Convert samples back to natural space
-samples_natural <- t(apply(res$samples, 1, g_inv))
+# samples_natural <- t(apply(res$samples, 1, g_inv))
 
-mcmc_samples <- mcmc(samples_natural)
+# mcmc_samples <- mcmc(samples_natural)
+
+mcmc_samples <- res$samples
 
 mcmc_clean <- window(mcmc_samples, start = res$burn_in + 1, thin = 1)
 
@@ -145,8 +153,8 @@ cat("Acceptance rate:", res$accept_rate, "\n")
 cat("Acceptance rate during burn-in:", res$burn_in_accept_rate, "\n")
 cat("Acceptance rate after burn-in:", res$after_burn_in_accept_rate, "\n")
 
-summary(mcmc_clean_par)
-effectiveSize(mcmc_clean_par)
+summary(mcmc_clean)
+effectiveSize(mcmc_clean)
 gelman.diag(mcmc_clean_par)
 
 # Traceplot
@@ -162,24 +170,24 @@ par(mfrow = c(1, 3))
 
 mu_dens_est <- density(as.matrix(mcmc_clean)[, "mu"])
 plot(mu_dens_est,
-    main = "Posterior Density of Mu",
-    lwd = 2, col = "blue", xlab = expression(mu)
+  main = "Posterior Density of Mu",
+  lwd = 2, col = "blue", xlab = expression(mu)
 )
 abline(v = true_param[1], col = "red", lwd = 2, lty = 2)
 legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
 
 sigma_dens_est <- density(as.matrix(mcmc_clean)[, "sigma"])
 plot(sigma_dens_est,
-    main = "Posterior Density of Sigma",
-    lwd = 2, col = "blue", xlab = expression(sigma)
+  main = "Posterior Density of Sigma",
+  lwd = 2, col = "blue", xlab = expression(sigma)
 )
 abline(v = true_param[2], col = "red", lwd = 2, lty = 2)
 legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
 
 theta_dens_est <- density(as.matrix(mcmc_clean)[, "theta"])
 plot(theta_dens_est,
-    main = "Posterior Density of Theta",
-    lwd = 2, col = "blue", xlab = expression(theta)
+  main = "Posterior Density of Theta",
+  lwd = 2, col = "blue", xlab = expression(theta)
 )
 abline(v = true_param[3], col = "red", lwd = 2, lty = 2)
 legend("topright", c("Posterior", "True"), col = c("blue", "red"), lty = 1:2)
@@ -222,9 +230,11 @@ summarize_G <- function(G_mat) {
 
 stats <- summarize_G(G)
 
-plot(y_grid, G_true, type = "l", lwd = 2, lty = 2, col = "red",
-     ylim = c(0, 1), xlab = "y", ylab = expression(P(M[n] <= y)),
-     main = "Maxima Distribution G, theta = 2")
+plot(y_grid, G_true,
+  type = "l", lwd = 2, lty = 2, col = "red",
+  ylim = c(0, 1), xlab = "y", ylab = expression(P(M[n] <= y)),
+  main = "Maxima Distribution G, theta = 4"
+)
 
 # Plot Dependent Model Posterior
 lines(y_grid, stats$mean, col = "blue", lwd = 2)
@@ -232,32 +242,36 @@ lines(y_grid, stats$mean, col = "blue", lwd = 2)
 lines(y_grid, stats$median, col = "orange", lwd = 2)
 
 polygon(c(y_grid, rev(y_grid)), c(stats$lower, rev(stats$upper)),
-        col = rgb(0, 0, 1, 0.1), border = NA)
+  col = rgb(0, 0, 1, 0.1), border = NA
+)
 
 legend("bottomright",
-       legend = c("True G",
-                  "Posterior Mean",
-                  "Posterior Median",
-                  "80% Credible Interval"),
-       col = c("red", "blue", "orange", rgb(0, 0, 1, 0.1)),
-       lwd = c(2, 2, 2, NA),
-       lty = c(2, 1, 1, NA),
-       pch = c(NA, NA, NA, 15),
-       pt.cex = 2,
-       bty = "n")
+  legend = c(
+    "True G",
+    "Posterior Mean",
+    "Posterior Median",
+    "80% Credible Interval"
+  ),
+  col = c("red", "blue", "orange", rgb(0, 0, 1, 0.1)),
+  lwd = c(2, 2, 2, NA),
+  lty = c(2, 1, 1, NA),
+  pch = c(NA, NA, NA, 15),
+  pt.cex = 2,
+  bty = "n"
+)
 
 # ----------------------------
 # Full-grid ISE
 # ----------------------------
 G_mean <- stats$mean
-G_med  <- stats$median
+G_med <- stats$median
 
 squared_diff_mean <- (G_mean - G_true)^2
-squared_diff_med  <- (G_med - G_true)^2
+squared_diff_med <- (G_med - G_true)^2
 
-dy <- diff(y_grid)[1]      # uniform grid spacing
+dy <- diff(y_grid)[1] # uniform grid spacing
 ISE_mean <- sum(squared_diff_mean) * dy
-ISE_med  <- sum(squared_diff_med)  * dy
+ISE_med <- sum(squared_diff_med) * dy
 
 cat("Full-grid ISE (Mean):", ISE_mean, "\n")
 cat("Full-grid ISE (Median):", ISE_med, "\n")
@@ -265,39 +279,44 @@ cat("Full-grid ISE (Median):", ISE_med, "\n")
 # ----------------------------
 # Tail ISE (e.g., G_true > 0.9)
 # ----------------------------
-tail_idx <- which(G_true > 0.9)          # indices for upper tail
+tail_idx <- which(G_true > 0.9) # indices for upper tail
 
 squared_diff_mean_tail <- squared_diff_mean[tail_idx]
-squared_diff_med_tail  <- squared_diff_med[tail_idx]
+squared_diff_med_tail <- squared_diff_med[tail_idx]
 
 # compute tail-grid spacing
 dy_tail <- diff(y_grid[tail_idx])[1]
 
 ISE_mean_tail <- sum(squared_diff_mean_tail) * dy_tail
-ISE_med_tail  <- sum(squared_diff_med_tail) * dy_tail
+ISE_med_tail <- sum(squared_diff_med_tail) * dy_tail
 
 cat("Tail ISE (Mean):", ISE_mean_tail, "\n")
 cat("Tail ISE (Median):", ISE_med_tail, "\n")
 
 ## Posterior Predictive Checking
-n_post <- 500           # number of posterior draws for predictive
-n_sim   <- length(X)    # sample size to simulate per draw
+n_post <- 500 # number of posterior draws for predictive
+n_sim <- length(X) # sample size to simulate per draw
 
 set.seed(123)
-X_post <- replicate(n_post, {
-  # Sample a random posterior draw
-  idx <- sample(1:nrow(samples_natural), 1)
-  param_s <- samples_natural[idx, ]
-  simulator(param_s, n_sim)
-}, simplify = "matrix")
+X_post <- replicate(n_post,
+  {
+    # Sample a random posterior draw
+    idx <- sample(1:nrow(samples_natural), 1)
+    param_s <- samples_natural[idx, ]
+    simulator(param_s, n_sim)
+  },
+  simplify = "matrix"
+)
 
 library(ggplot2)
 
 X_post_vec <- as.vector(X_post)
 df_plot <- data.frame(
   value = c(X, X_post_vec),
-  type  = rep(c("Observed", "Posterior Predictive"), 
-              c(length(X), length(X_post_vec)))
+  type = rep(
+    c("Observed", "Posterior Predictive"),
+    c(length(X), length(X_post_vec))
+  )
 )
 
 ggplot(df_plot, aes(x = value, fill = type)) +
@@ -305,34 +324,38 @@ ggplot(df_plot, aes(x = value, fill = type)) +
   geom_density(aes(color = type), size = 1) +
   labs(title = "Posterior Predictive Check: Marginal Distribution")
 
-summary_stats <- function(X_vec, u_prob = 0.95){
+summary_stats <- function(X_vec, u_prob = 0.95) {
   X_ord <- sort(X_vec)
   u <- quantile(X_vec, u_prob)
   exceed <- which(X_vec > u)
-  
+
   max_val <- max(X_vec)
-  spacing <- X_ord[length(X_vec)] - X_ord[length(X_vec)-1]
-  cond_exceed <- if(length(exceed) >= 2) (length(exceed)-1)/(length(X_vec)-1) else NA
+  spacing <- X_ord[length(X_vec)] - X_ord[length(X_vec) - 1]
+  cond_exceed <- if (length(exceed) >= 2) (length(exceed) - 1) / (length(X_vec) - 1) else NA
   dispersion <- sum(X_vec > u)
   var_mean <- var(X_vec)
-  
-  c(max = max_val, spacing = spacing, cond_exceed = cond_exceed,
-    exceed_count = dispersion, var_mean = var_mean)
+
+  c(
+    max = max_val, spacing = spacing, cond_exceed = cond_exceed,
+    exceed_count = dispersion, var_mean = var_mean
+  )
 }
 
 stats_post <- apply(X_post, 2, summary_stats)
-stats_obs  <- summary_stats(X)
+stats_obs <- summary_stats(X)
 
 library(reshape2)
 
 # stats_post: matrix with rows = stats (max, spacing, etc.), cols = posterior replicates
 # Transpose so that rows = posterior samples, cols = statistics
 stats_post_df <- as.data.frame(t(stats_post))
-stats_post_df$replicate <- 1:nrow(stats_post_df)  # add row identifier
+stats_post_df$replicate <- 1:nrow(stats_post_df) # add row identifier
 
 # Melt: each row = one posterior replicate for one statistic
-stats_melt <- melt(stats_post_df, id.vars = "replicate",
-                   variable.name = "stat", value.name = "value")
+stats_melt <- melt(stats_post_df,
+  id.vars = "replicate",
+  variable.name = "stat", value.name = "value"
+)
 
 # Add observed statistics as a separate dataframe
 stats_obs_df <- data.frame(
@@ -342,15 +365,19 @@ stats_obs_df <- data.frame(
 
 ggplot(stats_melt, aes(x = stat, y = value)) +
   geom_boxplot() +
-  geom_point(data = data.frame(stat = names(stats_obs), value = stats_obs),
-             aes(x = stat, y = value), color = "red", size = 3) +
-  labs(title = "Posterior Predictive Check: Key Statistics",
-       subtitle = "Red dots = observed statistics")
+  geom_point(
+    data = data.frame(stat = names(stats_obs), value = stats_obs),
+    aes(x = stat, y = value), color = "red", size = 3
+  ) +
+  labs(
+    title = "Posterior Predictive Check: Key Statistics",
+    subtitle = "Red dots = observed statistics"
+  )
 
 u <- quantile(X, 0.95)
 cond_exceed_post <- apply(X_post, 2, function(x) {
   exc <- which(x > u)
-  if(length(exc) >= 2) (length(exc)-1)/(length(x)-1) else NA
+  if (length(exc) >= 2) (length(exc) - 1) / (length(x) - 1) else NA
 })
 
 ggplot(data.frame(cond_exceed_post), aes(x = cond_exceed_post)) +
@@ -358,8 +385,10 @@ ggplot(data.frame(cond_exceed_post), aes(x = cond_exceed_post)) +
   geom_vline(xintercept = stats_obs["cond_exceed"], color = "red", lwd = 1.2) +
   labs(title = "Conditional Exceedance Probability PPC")
 
-matplot(X_post[,1:50], type = "l", col = rgb(0,0,1,0.2), lty = 1,
-        ylab = "X", xlab = "Index", main = "Posterior Predictive Samples")
+matplot(X_post[, 1:50],
+  type = "l", col = rgb(0, 0, 1, 0.2), lty = 1,
+  ylab = "X", xlab = "Index", main = "Posterior Predictive Samples"
+)
 lines(X, col = "red", lwd = 2)
 
 library(dplyr)
@@ -367,35 +396,42 @@ library(dplyr)
 stats_summary <- stats_post_df %>%
   select(-replicate) %>%
   summarise(across(everything(), list(
-    q05 = ~quantile(., 0.05, na.rm = TRUE),
-    q25 = ~quantile(., 0.25, na.rm = TRUE),
-    median = ~median(., na.rm = TRUE),
-    q75 = ~quantile(., 0.75, na.rm = TRUE),
-    q95 = ~quantile(., 0.95, na.rm = TRUE)
+    q05 = ~ quantile(., 0.05, na.rm = TRUE),
+    q25 = ~ quantile(., 0.25, na.rm = TRUE),
+    median = ~ median(., na.rm = TRUE),
+    q75 = ~ quantile(., 0.75, na.rm = TRUE),
+    q95 = ~ quantile(., 0.95, na.rm = TRUE)
   )))
 
 # Convert to long format for plotting
 library(tidyr)
 plot_df <- stats_summary %>%
   pivot_longer(everything(),
-               names_to = c("stat", "quantile"),
-               names_sep = "_",
-               values_to = "value")
+    names_to = c("stat", "quantile"),
+    names_sep = "_",
+    values_to = "value"
+  )
 
-ggplot(plot_df %>% filter(quantile %in% c("q05","q95","median")), 
-       aes(x = stat, y = value, group = stat)) +
+ggplot(
+  plot_df %>% filter(quantile %in% c("q05", "q95", "median")),
+  aes(x = stat, y = value, group = stat)
+) +
   geom_ribbon(aes(ymin = q05, ymax = q95), fill = "skyblue", alpha = 0.3) +
   geom_point(aes(y = median), color = "blue", size = 3) +
   geom_point(data = stats_obs_df, aes(x = stat, y = value), color = "red", size = 3) +
-  labs(title = "Posterior Predictive Summary with Quantile Bands",
-       subtitle = "Red = observed statistics")
+  labs(
+    title = "Posterior Predictive Summary with Quantile Bands",
+    subtitle = "Red = observed statistics"
+  )
 
 extreme_idx <- which(stats_post_df$max > quantile(stats_obs["max"], 0.99))
 X_extreme <- X_post[, extreme_idx]
 
 # Plot extreme draws separately
-matplot(X_extreme[,1:20], type = "l", col = rgb(1,0,0,0.3), lty = 1,
-        ylab = "X", xlab = "Index", main = "Extreme Posterior Predictive Draws")
+matplot(X_extreme[, 1:20],
+  type = "l", col = rgb(1, 0, 0, 0.3), lty = 1,
+  ylab = "X", xlab = "Index", main = "Extreme Posterior Predictive Draws"
+)
 
 library(ggridges)
 
@@ -407,13 +443,15 @@ df_ridges <- data.frame(
 ggplot(df_ridges, aes(x = value, y = factor(replicate))) +
   geom_density_ridges(scale = 0.9, fill = "skyblue", alpha = 0.3) +
   geom_vline(xintercept = X, color = "red", lwd = 1) +
-  labs(title = "Posterior Predictive Density Ridges",
-       subtitle = "Red lines = observed values")
+  labs(
+    title = "Posterior Predictive Density Ridges",
+    subtitle = "Red lines = observed values"
+  )
 
 cond_exceed_post <- apply(X_post, 2, function(x) {
   u <- quantile(X, 0.95)
   exc <- which(x > u)
-  if(length(exc) >= 2) (length(exc)-1)/(length(x)-1) else NA
+  if (length(exc) >= 2) (length(exc) - 1) / (length(x) - 1) else NA
 })
 
 # Use robust histogram
