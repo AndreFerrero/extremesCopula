@@ -13,7 +13,7 @@ set.seed(1)
 # 1. Dimension and true copula parameter
 # ------------------------------------------------------------
 n <- 100            # sample size
-theta_true <- 2     # true Gumbel copula parameter
+theta_true <- 4     # true Gumbel copula parameter
 
 # ------------------------------------------------------------
 # 2. Draw from Gumbel copula
@@ -49,10 +49,10 @@ loglik_gumbel <- function(theta, u) {
 # ------------------------------------------------------------
 theta_grid <- seq(1.05, 5, length.out = 100)
 
-ll_oracle <- sapply(theta_grid, loglik_gumbel, u = U)
+ll_true <- sapply(theta_grid, loglik_gumbel, u = U)
 ll_pseudo <- sapply(theta_grid, loglik_gumbel, u = u_hat)
 
-plot(theta_grid, ll_oracle, type = "l", lwd = 2,
+plot(theta_grid, ll_true, type = "l", lwd = 2,
      xlab = expression(theta),
      ylab = "Log-likelihood",
      main = "Oracle vs Pseudo Likelihood")
@@ -188,3 +188,21 @@ contour(theta_grid, sigma_grid, LL_clean,
         main = "Ridge in (theta, sigma) likelihood")
 lines(ridge_theta, ridge_sigma, col = "red", lwd = 2)
 points(ridge_theta, ridge_sigma, col = "red", pch = 19, cex = 0.6)
+
+# Fisher information
+library(numDeriv)
+
+psi_true <- c(mu_true, sigma_true, theta_true)
+
+negloglik <- function(par) {
+  -joint_loglik(par, X)
+}
+
+H <- hessian(negloglik, psi_true)
+I_obs <- H
+eigen(I_obs)$values
+eigen(I_obs)$vectors
+
+true_H <- hessian(function(th) loglik_gumbel(th, U), theta)
+true_H
+eigen(true_H)
