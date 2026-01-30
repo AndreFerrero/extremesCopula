@@ -1,34 +1,48 @@
 ---
-title: "Extreme Copula-Based Markov Models: A Research Proposal"
+title: "Copula Markov Models"
 output: pdf_document
 ---
 
-## 1. Introduction: Copula-Based Markov Models
+## 1. Introduction
 
-Copulas have been successfully employed to model univariate time series by constructing Markov processes with flexible dependence structures. A Copula-Based Markov Model (CMM) of order one is defined by the relation:
+ A Copula Markov Model (CMM) of order one defines the joint law of the pairs $(X_{t-1}, X_t)$:
 
 \[ 
-(Y_t, Y_{t+1}) \sim C(F(y_t), F(y_{t+1})) 
+F(x_{t-1}, x_t) \sim C(F(x_{t-1}), F(x_t)) 
 \]
 
-with $F$ the invariant marginal distribution. This approach differs from defining a copula over the entire sequence $Y_1, \dots , Y_n$ and offers the computational advantage of using bivariate copulas, characterised by a likelihood simpler to evaluate.
-
-Chen et al. (2009) study semiparametric estimation of this model in the frequentist framework, while investigating mixing properties of the model using tail-dependent copulas (Clayton, Gumbel,...), extending existing results. In particular, CMMs are geometrically ergodic, hence geometrically $\beta$-mixing, under certain conditions which are usually satisfied by common copula choices. This means realisations from CMMs with Clayton or Gumbel, despite looking persistent, are actually weakly dependent and "short memory". Semiparametric estimation is carried out with sieve maximum likelihood, and found to be superior to the classic Inference From Margin method in terms of efficiency and bias.
-
-## 2. Connection to EVT
-
-Connecting CMM to the theory of Extremes, we know from the mixing properties that the limit distribution of the (adequately) normalised maximum will be:
+The Markov property leads to:
 
 \[
-P\left( \frac{M_n - b_n}{a_n} < z \right) \to G(z) = H^\theta(z)
+f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^n f(x_t \mid x_{t-1}) 
 \]
 
-with $H$ the GEV limit distribution of the maximum under iid sampling from F, and $\theta \in (0,1]$ the extremal index.
+Using the copula density \(c(u_{t-1}, u_t) = \frac{\partial^2}{\partial x_{t-1} \partial x_t} C(u_{t-1}, u_t)\) and taking \(u_t = F(x_t)\), we can also write:
 
-## 3. EVT and Markov Chains
+\[
+f(x_t \mid x_{t-1}) = \frac{f(x_{t-1}, x_t)}{f(x_{t-1})} = \frac{c(u_{t-1}, u_t) f(x_{t-1}) f(x_t)}{f(x_{t-1})}
+\] which leads to:
 
-Work has been carried out on the link between Markov Chains and Extremes. In particular, Smith (1992), Perfekt (1994) and Yun (1998) derive the extremal index for Markov Processes, showing how it is related to the Extremal Chain.
+\[
+f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^n f(x_t) c(u_{t-1}, u_t) = \prod_{t=1}^n f(x_t) \prod_{t=2}^n c(u_{t-1}, u_t)
+\]
 
-## 4. Idea
+The joint copula density is:
 
-Leverage results on the extremal index of Markov Chains to study the maxima under CMM. Potentially, a Bayesian approach could be performed to quantify uncertainty on $\theta$.
+\[
+c_n(u_1,\dots,u_n) = \frac{f(x_1,\dots,x_n)}{\prod_{t=1}^n f(x_t)} = \frac{\prod_{t=1}^n f(x_t) \prod_{t=2}^n c(u_{t-1}, u_t)}{\prod_{t=1}^n f(x_t)} = \prod_{t=2}^n c(u_{t-1}, u_t)
+\]
+
+The joint copula is then given by:
+
+\[C_n(u_1,\dots,u_n) = \int_0^{u_1} \dots \int_0^{u_n} \prod_{t=2}^n c(v_{t-1}, v_t) dv_1 \dots dv_n\]
+
+We can write the diagonal as:
+
+\[\delta_n(u) = C_n(u,\dots,u) = \int_0^{u} \dots \int_0^{u} \prod_{t=2}^n c(v_{t-1}, v_t) dv_1 \dots dv_n\]
+
+The iid case for example is given by \(c(v_{t-1}, v_t) = 1\):
+
+\[
+\delta_n(u) = \int_0^{u} \dots \int_0^{u} 1 dv_1, \dots, dv_n = u^n
+\]
