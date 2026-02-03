@@ -1,6 +1,7 @@
 library(rstan)
 library(ggplot2)
 library(bayesplot)
+library(copula)
 
 # --- 1. SETTINGS & SIMULATION ---
 margin_egp <- list(
@@ -39,61 +40,67 @@ margin_egp <- list(
 )
 
 
-make_safe_step <- function() {
-  counter <- 0L
+# 1. The Gumbel h-function (Conditional CDF)
+# We use this to solve: h(u | v, theta) = w
+gumbel_hfunc <- function(u, v, theta) {
+  # Numerical clamping to prevent log(0) or log(1)
+  u <- pmax(pmin(u, 1 - 1e-12), 1e-12)
+  v <- pmax(pmin(v, 1 - 1e-12), 1e-12)
   
-  step <- function(u_prev, cop, max_tries = 10, eps = 1e-10) {
-    for (k in 1:max_tries) {
-      v <- runif(1, eps, 1 - eps)
-      
-      u_next <- tryCatch(
-        cCopula(
-          cbind(u_prev, v),
-          copula = cop,
-          inverse = TRUE
-        )[2],
-        error = function(e) NA_real_
-      )
-      
-      if (is.finite(u_next) && u_next > 0 && u_next < 1) {
-        return(u_next)
-      }
-      
-      counter <<- counter + 1L
-    }
-    
-    stop("Copula inversion failed after repeated attempts")
-  }
+  ln_u <- -log(u)
+  ln_v <- -log(v)
+  term <- ln_u^theta + ln_v^theta
+  C <- exp(-term^(1/theta))
   
-  list(
-    step = step,
-    get_failures = function() counter
-  )
+  # Conditional probability P(U <= u | V = v)
+  h <- C * (ln_v^(theta - 1)) * (term^(1/theta - 1)) / v
+  return(h)
 }
 
-simulate_gumbel_markov_egpd <- function(n, theta, param_egp, burn = 100) {
-  cop <- gumbelCopula(theta)
-  tracker <- make_safe_step()
+# 2. Optimized Markov Simulation using Bisection
+simulate_gumbel_markov_egpd <- function(n, theta, param_egp, burn = 100, bisec_it = 20) {
   
-  # simulate uniform Markov chain
-  U <- numeric(n + burn)
-  U[1] <- runif(1, 1e-10, 1 - 1e-10)
+  total_n <- n + burn
+  U <- numeric(total_n)
   
-  for (t in 1:(n + burn - 1)) {
-    U[t + 1] <- tracker$step(U[t], cop)
+  # Initial state
+  U[1] <- runif(1, 1e-5, 1 - 1e-5)
+  
+  for (t in 2:total_n) {
+    v_prev <- U[t - 1]
+    w_target <- runif(1) # The random uniform to invert
+    
+    # Bisection Solver (replaces the old cCopula logic)
+    low <- 1e-10
+    high <- 1 - 1e-10
+    
+    for (i in 1:bisec_it) {
+      mid <- (low + high) / 2
+      if (gumbel_hfunc(mid, v_prev, theta) < w_target) {
+        low <- mid
+      } else {
+        high <- mid
+      }
+    }
+    U[t] <- (low + high) / 2
   }
   
-  list(
-    X = margin_egp$quantile(U[(burn + 1):(n + burn)], param_egp),
-    n_failures = tracker$get_failures()
-  )
+  # Remove burn-in and transform to EGPD scale
+  U_final <- U[(burn + 1):total_n]
+  X <- margin_egp$quantile(U_final, param_egp)
+  
+  return(list(
+    X = X,
+    U = U_final,
+    n_failures = 0 # With Bisection, this is always 0
+  ))
 }
 
 set.seed(123)
 true_params <- list(kappa = 1.5, sigma = 2.0, xi = 0.1, theta = 2.0)
 param_egp <- c(kappa = 1.5, sigma = 2.0, xi = 0.1)
 
-n_obs <- 1000
+n_obs <- 10000
 
 sim_obs <- simulate_gumbel_markov_egpd(n_obs, true_params[["theta"]], param_egp)
 X_sim <- sim_obs$X
