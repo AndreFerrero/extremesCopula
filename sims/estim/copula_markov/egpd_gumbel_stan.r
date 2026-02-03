@@ -100,7 +100,7 @@ set.seed(123)
 true_params <- list(kappa = 1.5, sigma = 2.0, xi = 0.1, theta = 2.0)
 param_egp <- c(kappa = 1.5, sigma = 2.0, xi = 0.1)
 
-n_obs <- 10000
+n_obs <- 1000
 
 sim_obs <- simulate_gumbel_markov_egpd(n_obs, true_params[["theta"]], param_egp)
 X_sim <- sim_obs$X
@@ -152,7 +152,7 @@ ppc_ribbon(X_sim, y_prior) +
 
 # RUN POSTERIOR
 
-stan_data <- list(T = length(X_sim), x = X_sim)
+stan_data <- list(T = length(X_sim), x = X_sim, prior_check = 0)
 
 stan_fit_ppc <- sampling(
     mod_ppc,
@@ -251,3 +251,43 @@ ggplot() +
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
+
+calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
+  u <- quantile(x, prob)
+  n <- length(x)
+  ext_vec <- numeric(max_lag)
+  
+  # Indicator: 1 if extreme, 0 otherwise
+  is_ext <- x > u
+  denom <- sum(is_ext)
+  
+  for (h in 1:max_lag) {
+    # Count times both t and t+h are extreme
+    num <- sum(is_ext[1:(n-h)] & is_ext[(h+1):n])
+    ext_vec[h] <- num / denom
+  }
+  return(ext_vec)
+}
+
+# --- For your PPC Plot ---
+obs_ext <- calc_extremogram(X_sim)
+# Calculate extremograms for 100 posterior replicates
+rep_exts <- t(apply(y_rep[1:100, ], 1, calc_extremogram))
+
+# Plotting logic
+library(tidyverse)
+plot_df <- data.frame(
+  lag = 1:10,
+  obs = obs_ext,
+  low = apply(rep_exts, 2, quantile, 0.025),
+  high = apply(rep_exts, 2, quantile, 0.975)
+)
+
+ggplot(plot_df, aes(x = lag)) +
+  geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
+  geom_line(aes(y = obs), color = "red", size = 1) +
+  geom_point(aes(y = obs), color = "red") +
+  labs(title = "Extremogram PPC", 
+       subtitle = "Red: Observed Data | Blue: 95% Model Credible Interval",
+       y = "Conditional Prob of Extreme", x = "Lag (Time)") +
+  theme_minimal()
