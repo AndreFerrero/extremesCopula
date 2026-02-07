@@ -47,6 +47,7 @@ functions {
 data {
   int<lower=2> T;
   vector<lower=0>[T] x;
+  
 }
 
 parameters {
@@ -68,8 +69,7 @@ model {
   // Very wide for EVT: allows for finite and infinite variance
   xi ~ normal(0, 0.5);
   
-  // Flatter dependence prior: median theta is ~7.9, mode is at 1.0
-  thetam1 ~ exponential(0.1); 
+  thetam1 ~ gamma(2, 0.7); 
 
   // Likelihood
   // Initial observation margin

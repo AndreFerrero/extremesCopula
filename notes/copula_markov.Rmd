@@ -2,19 +2,130 @@
 title: "Copula Markov Models"
 output: pdf_document
 ---
+```{r, cache = TRUE, echo = FALSE}
+library(copula)
+library(microbenchmark)
 
-## 1. Introduction
+# 1. THE GUMBEL H-FUNCTION (Conditional CDF: P(U <= u | V = v))
+gumbel_hfunc <- function(u, v, theta) {
+  # Guard against boundary values that cause log(0) or log(1)
+  u <- pmax(pmin(u, 1 - 1e-12), 1e-12)
+  v <- pmax(pmin(v, 1 - 1e-12), 1e-12)
+  
+  ln_u <- -log(u)
+  ln_v <- -log(v)
+  term <- ln_u^theta + ln_v^theta
+  C <- exp(-term^(1/theta))
+  
+  # The partial derivative dC/dv
+  h <- C * (ln_v^(theta - 1)) * (term^(1/theta - 1)) / v
+  return(h)
+}
+
+# 2. BISECTION SAMPLER
+sample_bisection <- function(v_prev, theta, iterations = 20) {
+  w <- runif(1)
+  low <- 1e-10
+  high <- 1 - 1e-10
+  
+  for (i in 1:iterations) {
+    mid <- (low + high) / 2
+    if (gumbel_hfunc(mid, v_prev, theta) < w) {
+      low <- mid
+    } else {
+      high <- mid
+    }
+  }
+  return((low + high) / 2)
+}
+
+# 3. COPULA PACKAGE SAMPLER
+sample_copula_pkg <- function(u_prev, theta) {
+  cop <- gumbelCopula(theta)
+  # R's standard conditional sampling via Inverse Rosenblatt
+  tryCatch({
+    res <- cCopula(cbind(u_prev, runif(1)), copula = cop, inverse = TRUE)[2]
+    return(list(val = res, error = FALSE))
+  }, error = function(e) {
+    return(list(val = NA, error = TRUE))
+  })
+}
+
+margin_egp <- list(
+  name = "egp",
+  G_dist = function(u, param) u^param["kappa"],
+  G_inv = function(u, param) u^(1 / param["kappa"]),
+  g_dist = function(u, param) {
+    param["kappa"] * u^(param["kappa"] - 1)
+  },
+  cdf = function(x, param) {
+    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
+    margin_egp$G_dist(u, param)
+  },
+  lpdf = function(x, param) {
+    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
+    log(margin_egp$g_dist(u, param)) +
+      log(evd::dgpd(x / param["sigma"], shape = param["xi"])) -
+      log(param["sigma"])
+  },
+  quantile = function(p, param) {
+    param["sigma"] * evd::qgpd(
+      margin_egp$G_inv(p, param),
+      shape = param["xi"]
+    )
+  },
+  sample = function(n, param) {
+    U <- runif(n)
+    margin_egp$quantile(U, param)
+  }
+)
+
+simulate_gumbel_markov_egpd <- function(n, theta, param_egp, burn = 100, bisec_it = 20) {
+  total_n <- n + burn
+  U <- numeric(total_n)
+  U[1] <- runif(1, 1e-5, 1 - 1e-5)
+  for (t in 2:total_n) {
+    v_prev <- U[t - 1]
+    w_target <- runif(1)
+    low <- 1e-10
+    high <- 1 - 1e-10
+    for (i in 1:bisec_it) {
+      mid <- (low + high) / 2
+      if (gumbel_hfunc(mid, v_prev, theta) < w_target) low <- mid else high <- mid
+    }
+    U[t] <- (low + high) / 2
+  }
+  U_final <- U[(burn + 1):total_n]
+  X <- margin_egp$quantile(U_final, param_egp)
+  return(list(X = X, U = U_final, n_failures = 0))
+}
+
+calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
+  u <- quantile(x, prob)
+  n <- length(x)
+  ext_vec <- numeric(max_lag)
+  is_ext <- x > u
+  denom <- sum(is_ext)
+  for (h in 1:max_lag) {
+    num <- sum(is_ext[1:(n - h)] & is_ext[(h + 1):n])
+    ext_vec[h] <- num / denom
+  }
+  return(ext_vec)
+}
+```
+
+# 1. Joint Copula
 
  A Copula Markov Model (CMM) of order one defines the joint law of the pairs $(X_{t-1}, X_t)$:
 
 \[ 
-F(x_{t-1}, x_t) \sim C(F(x_{t-1}), F(x_t)) 
+P(X_{t-1} \le x_{t-1}, X_t \le x_t) = C(F(x_{t-1}), F(x_t)) 
 \]
 
 The Markov property leads to:
 
 \[
-f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^n f(x_t \mid x_{t-1}) 
+f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^T f(x_t \mid x_{t-1}) 
 \]
 
 Using the copula density \(c(u_{t-1}, u_t) = \frac{\partial^2}{\partial x_{t-1} \partial x_t} C(u_{t-1}, u_t)\) and taking \(u_t = F(x_t)\), we can also write:
@@ -24,25 +135,508 @@ f(x_t \mid x_{t-1}) = \frac{f(x_{t-1}, x_t)}{f(x_{t-1})} = \frac{c(u_{t-1}, u_t)
 \] which leads to:
 
 \[
-f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^n f(x_t) c(u_{t-1}, u_t) = \prod_{t=1}^n f(x_t) \prod_{t=2}^n c(u_{t-1}, u_t)
+f(x_1, \dots, x_n) = f(x_1) \prod_{t=2}^T f(x_t) c(u_{t-1}, u_t) = \prod_{t=1}^T f(x_t) \prod_{t=2}^T c(u_{t-1}, u_t)
 \]
 
 The joint copula density is:
 
 \[
-c_n(u_1,\dots,u_n) = \frac{f(x_1,\dots,x_n)}{\prod_{t=1}^n f(x_t)} = \frac{\prod_{t=1}^n f(x_t) \prod_{t=2}^n c(u_{t-1}, u_t)}{\prod_{t=1}^n f(x_t)} = \prod_{t=2}^n c(u_{t-1}, u_t)
+c_n(u_1,\dots,u_n) = \frac{f(x_1,\dots,x_n)}{\prod_{t=1}^T f(x_t)} = \frac{\prod_{t=1}^T f(x_t) \prod_{t=2}^T c(u_{t-1}, u_t)}{\prod_{t=1}^T f(x_t)} = \prod_{t=2}^T c(u_{t-1}, u_t)
 \]
 
 The joint copula is then given by:
 
-\[C_n(u_1,\dots,u_n) = \int_0^{u_1} \dots \int_0^{u_n} \prod_{t=2}^n c(v_{t-1}, v_t) dv_1 \dots dv_n\]
+\[C_n(u_1,\dots,u_n) = \int_0^{u_1} \dots \int_0^{u_n} \prod_{t=2}^T c(v_{t-1}, v_t) dv_1 \dots dv_n\]
 
 We can write the diagonal as:
 
-\[\delta_n(u) = C_n(u,\dots,u) = \int_0^{u} \dots \int_0^{u} \prod_{t=2}^n c(v_{t-1}, v_t) dv_1 \dots dv_n\]
+\[\delta_n(u) = C_n(u,\dots,u) = \int_0^{u} \dots \int_0^{u} \prod_{t=2}^T c(v_{t-1}, v_t) dv_1 \dots dv_n\]
 
 The iid case for example is given by \(c(v_{t-1}, v_t) = 1\):
 
 \[
-\delta_n(u) = \int_0^{u} \dots \int_0^{u} 1 dv_1, \dots, dv_n = u^n
+\delta_n(u) = \int_0^{u} \dots \int_0^{u} 1 dv_1, \dots, dv_n = u^T
 \]
+
+# 2. Case study: Gumbel + EGPD
+
+We combine the Gumbel copula with the Extended Generalised Pareto distribution for the margin.
+
+## EGPD
+
+The EGP distribution arises from the GP distribution. If you say that \(G(x)\) is the cdf of \(\mathrm{GP}(\sigma, \xi)\), then \(F(x)\) is the cdf of \(\mathrm{EGP}(\kappa, \sigma, \xi)\) if it is constructed by taking (in the simplest case): \[F(x) = G(x) ^\kappa.\] The advantage over the classic GP distribution is that we do not need to discard data by removing observations before a threshold and it models the entire distribution (as needed when we use copulas) while retaining a fullly parametric but flexible form (especially for extremes). Analytical formulas of the EGPD are omitted bu available in closed form.
+
+## Bivariate Gumbel density
+Consider the bivariate Gumbel copula, where \(\theta \ge 1\):
+
+\[
+    C_\theta(u, v) = \exp(- [(-\log u)^\theta + (-\log v)^\theta]^{1/\theta})
+\]
+
+In our Markov model scenario, the two variables $(U, V)$ represent the generic pair $(U_{t-1}, U_t) \sim C_\theta$.
+
+We know that in this case:
+
+\[\tau = 1 - \frac{1}{\theta}\]
+\[\lambda_U = \lim P(U > u \mid V > v) = 2 - 2^{\frac{1}{\theta}}\]
+\[\phi_\theta (t) = \exp(-t^{1/\theta}) \; , \; \phi_\theta^{-1}(u) = (- \log u)^\theta\]
+
+where \(C(u, v) = \phi(\phi^{-1}(u) + \phi^{-1}(v))\) is the general Archimedean copula with generator \(\phi\).
+
+To estimate the model, one needs the (log) density of the Copula. For Archimedean copulas, Hofert et al. 2012. have found analitical solutions. The general case (in dimension \(d = 2\)) leads to:
+\[
+    c(u, v) = \phi^{(2)}\{t(u,v)\} (\phi^{-1})^\prime (u) (\phi^{-1})^\prime (v)
+\]
+
+where \(t(u, v) = \phi^{-1}(u) + \phi^{-1}(v)\), which we will abbreviate as t. First, we can find:
+
+\[
+    (\phi^{-1})^\prime (u) = \frac{d}{du} (- \log u)^\theta = \theta (- \log u)^{\theta - 1} (- \frac{1}{u})
+\]
+
+In the same paper, they also show the d-th derivative of the generators. For the Gumbel case, with \(\alpha = 1/ \theta\):
+
+\[
+(-1)^d \phi^{(d)}(t) = \frac{\phi(t)}{t^d} P_{d, \alpha}(t^\alpha)    
+\]
+
+where:
+\[
+P_{d, \alpha}(x) = \sum_{k=1}^d A_{d,k}(\alpha) x^k
+\]
+
+and:
+
+\[
+A_{d,k} = (-1)^{d - k} \sum_{j = k}^d \alpha^j s(d, j) S(j, k)
+\]
+
+with s() and S() the Stirling's numbers of the first and second kind, respectively. With \(d = 2\), computations lead to:
+
+\[
+A_{2,1} (\alpha) = (-1)^{2-1} (\alpha \, s(2,1) S(1,1) + \alpha^2 s(2,2) S(2,1)) = (-1) (\alpha \, (-1) \, 1 + \alpha^2 \, 1 \, 1) = (\alpha - \alpha^2)
+\]
+
+\[
+A_{2,2}(\alpha) = (-1)^{2-2} (\alpha^2 s(2,2) S(2,2)) = \alpha^2    
+\]
+
+\[P_{2, \alpha} = (\alpha - \alpha^2) \, x + \alpha^2 \, x^2 = \frac{1}{\theta^2} x (x + \theta - 1)\]
+
+Putting everything together (the second derivative of the generator and the first derivative of the inverse generator evaluated at u and t):
+
+\[
+c_\theta(u,v) = (\frac{\exp(-t^\alpha)}{t^2} \frac{1}{\theta^2} t^\alpha (t^\alpha + \theta - 1)) (\frac{\theta^2}{u \, v} [(- \log u) (- \log v)]^{\theta - 1})  
+\]
+
+\[
+\log c_\theta (u, v) = -t^\alpha + (\theta - 1) [\log(- \log u) + \log(- \log v)] + \alpha \log t + \log(t^\alpha + \theta - 1) - 2 \log t - (\log u + \log v)    
+\]
+
+The above derivation allows to evaluate the Gumbel Markov model without resorting to the copula package. This is useful when using other programming languages (for example Stan).
+
+## Gumbel Copula Markov Model sampling
+
+In general, we need to be able to sample from the conditional distribution of the copula given the previous value. The standard method uses the Inverse Rosenblatt transform.
+
+The idea is that a sequence of dependent random variables, drawn conditionally on the value from the previous step, defines a sequence of uniform random variables. Therefore, at every sampling step we generate $w_t \sim \mathrm{Unif}(0,1)$ and use it to solve the equation:
+
+\[
+    w_t = h(u_t\mid u_{t-1}) = P(U_t \le u_t \mid U_{t-1} = u_{t-1}) = \frac{\partial C(u_{t-1},u_t)}{\partial u_{t-1}}     
+\]
+
+The last identity follows from the definition of conditional distribution applied to random variables following a copula.
+
+If $h$ is invertible, sampling is immediate. However, Gumbel $h$ function is:
+
+\[h(u_t | u_{t-1}, \theta) = \frac{C_\theta(u_t, u_{t-1})}{u_{t-1}} (-\ln u_{t-1})^{\theta-1} \left[ (-\ln u_t)^\theta + (-\ln u_{t-1})^\theta \right]^{\frac{1}{\theta} - 1}\]
+
+A simple numerical method to solve this equation is the Bisection method. We seek to find the root of the equation:
+
+\[
+f(u) = h(u \mid u_{t-1}; \theta) - w_t = 0
+\]
+
+Conditions that need to be satisfied are:
+
+- Monotonicity
+
+- The opposite signs at given points a and b: $f(0) = 0 - w_t < 0$ and $f(1) = 1 - w_t > 0$
+
+By the Intermediate Value Theorem, the sign change guarantees the existence of the root and monotonicity its uniqueness. To find the approximate root, you can scan the space iteratively until convergence or for a sufficiently high number of iterations. The clever way is to divide the space in half at the beginning and evaluate the function at the middle: if the function is negative, the root must be on the right of the middle point as the function is increasing. On the other hand, if the function at the middle is positive, the root is on the left.
+
+The Inverse Rosenblatt Transformation combined with the Bisection method yields the following algorithm:
+
+$$
+\begin{array}{ll}
+\hline
+\mathbf{Algorithm:} & \text{Copula Markov Model sampling via Inverse Rosenblatt Transform} \\
+\hline
+\text{Input:} & \text{Initial state } u_1, \text{ parameter } \theta, \text{ length } T , \text{Bisection iterations} I\\
+\text{Output:} & \text{Markov sequence } \{u_1, \dots, u_T\} \\
+\hline
+\mathbf{for} & t = 2 \text{ to } T \; \mathbf{do} \\
+& w_t \sim \text{Uniform}(0, 1) \\
+& \text{Set } low = 10^{-5}, high = 1 - 10^{-5} \\
+& \mathbf{for} \ i = 1 \text{ to } I \; \mathbf{do} \\
+& \quad mid = (low + high) / 2 \\
+& \quad \mathbf{if} \ h(mid \mid u_{t-1}, \theta) < w_t \; \mathbf{then} \\
+& \quad \quad low = mid \\
+& \quad \mathbf{else} \\
+& \quad \quad high = mid \\
+& \quad \mathbf{end\ if} \\
+& \mathbf{end\ for} \\
+& u_t = (low + high) / 2 \\
+\mathbf{end\ for} & \\
+\hline
+\end{array}
+$$
+
+As a sanity check, we can verify theoretical properties numerically and visually. For example, the generated $w_t$ should follow a uniform distribution. Moreover, we know what the theoretical Kendall's correlation coefficient and $\lambda_U$ should be for a Gumbel copula (the properties listed at the beginning of the section). We also expect to see strong upper tail dependence.
+
+Below, we ran a Monte Carlo simulation with 50 replicates using the bisection method with $T = 5000, I = 25, u = 0.98$ and compared the theoretical $\tau$ and $\lambda_U$ statistics on the realised series. Bias is generally low.
+
+```{r, cache = TRUE, echo = FALSE}
+# --- 1. SETUP ---
+theta_values <- c(1.1, 1.5, 2.0, 3.0, 5.0, 8.0)
+T_length     <- 2000 
+n_mc         <- 50    # Number of Monte Carlo iterations
+q_thresh     <- 0.98   
+set.seed(42)
+
+# Theoretical Lambda_U formula
+theo_lambda_u <- function(theta) 2 - 2^(1/theta)
+
+# Storage for MC results
+mc_results <- list()
+
+# --- 2. MONTE CARLO LOOP ---
+for (th in theta_values) {
+  
+  # Temporary storage for this specific theta's 50 runs
+  tau_sims    <- numeric(n_mc)
+  lambda_sims <- numeric(n_mc)
+  
+  for (m in 1:n_mc) {
+    # Generate Markov sequence
+    u <- numeric(T_length)
+    u[1] <- runif(1)
+    for(t in 2:T_length) {
+      u[t] <- sample_bisection(u[t-1], th, iterations = 25)
+    }
+    
+    # Calculate empirical metrics for this specific run
+    tau_sims[m]    <- cor(u[-T_length], u[-1], method = "kendall")
+    
+    excess         <- u > q_thresh
+    lambda_sims[m] <- mean(excess[-1] & excess[-T_length]) / mean(excess)
+  }
+  
+  # Calculate Theoreticals
+  tau_theo    <- 1 - 1/th
+  lambda_theo <- theo_lambda_u(th)
+  
+  # Store Aggregated Statistics
+  mc_results[[as.character(th)]] <- data.frame(
+    Theta       = th,
+    Theo_Tau    = round(tau_theo, 4),
+    Mean_Tau    = round(mean(tau_sims), 4),
+    SD_Tau      = round(sd(tau_sims), 4),
+    Tau_Bias    = round(mean(tau_sims) - tau_theo, 4),
+    Theo_Lambda = round(lambda_theo, 4),
+    Mean_Lambda = round(mean(lambda_sims, na.rm = TRUE), 4),
+    SD_Lambda   = round(sd(lambda_sims, na.rm = TRUE), 4),
+    Lambda_Bias = round(mean(lambda_sims, na.rm = TRUE) - lambda_theo, 4)
+  )
+}
+
+# --- 3. FINAL OUTPUT TABLE ---
+results_table <- do.call(rbind, mc_results)
+print(results_table, row.names = FALSE)
+```
+
+```{r, echo = FALSE, cache=TRUE}
+T_plot <- 5000
+u2 <- numeric(T_plot)
+theta_plot <- 3
+
+u2[1] <- runif(1)
+for(t in 2:T_plot) {
+u2[t] <- sample_bisection(u2[t-1], theta_plot, iterations = 25)
+}
+
+plot(u2[-T_plot], u2[-1], 
+     pch = 16, col = rgb(0, 0, 1, 0.2),
+     xlab = expression(U[t-1]), ylab = expression(U[t]),
+     main = paste0("Pairs plot, theta = ", theta_plot))
+abline(0, 1, col = "red", lty = 2)
+
+w_t <- gumbel_hfunc(u2[-T_plot], u2[-1], theta_plot)
+
+hist(w_t)
+```
+
+Below we see the computation time statistics comparing the bisection method implemented manually and R copula package version. Incidentally, we managed to reduce drastically the computation time in this simulation study making the ad-hoc method more viable to generate data.
+
+```{r, cache= TRUE, echo=FALSE}
+
+# SIMULATION STUDY ---
+test_params <- c(1.1, 2, 5)
+n_samples <- 1000
+results <- data.frame()
+
+set.seed(42)
+
+for (theta in test_params) {
+  errors_pkg <- 0
+  errors_bis <- 0
+  
+  u_val <- runif(1) # Start value
+  
+  for (i in 1:n_samples) {
+    # Test Package
+    pkg_res <- sample_copula_pkg(u_val, theta)
+    if (pkg_res$error) errors_pkg <- errors_pkg + 1
+    
+    # Test Bisection
+    bis_res <- sample_bisection(u_val, theta)
+    if (is.na(bis_res)) errors_bis <- errors_bis + 1
+    
+    # Update u_val for next step (Markov property)
+    if (!pkg_res$error) u_val <- pkg_res$val else u_val <- runif(1)
+  }
+  
+  results <- rbind(results, data.frame(
+    Theta = theta,
+    Package_Errors = errors_pkg,
+    Bisection_Errors = errors_bis
+  ))
+}
+
+mb <- microbenchmark(
+  Bisection = sample_bisection(0.5, 2, iterations = 20),
+  R_Package = cCopula(cbind(0.5, 0.5), gumbelCopula(2), inverse = TRUE),
+  times = 1000
+)
+
+print(mb)
+```
+
+## Bayesian Model implementation on simulated data
+
+We implemented the model on Stan using the analitical and numerical developments carried out before.
+
+The hierarchical structure of the Bayesian Gumbel-EGPD Markov model is defined as follows:
+
+\[
+\begin{aligned}
+\text{Level 1: } & \text{Likelihood (Markovian Time Series)} \\
+& x_1 \sim \text{EGPD}(\kappa, \sigma, \xi) \\
+& x_t \mid x_{t-1}, \boldsymbol{\psi} \sim c_{\theta}(F(x_t), F(x_{t-1})) \cdot f(x_t \mid \kappa, \sigma, \xi) \quad \text{for } t = 2, \dots, T \\
+\\
+\text{Level 2: } & \text{Latent Processes (Margins and Copula)} \\
+& F(x) = [G(x; \sigma, \xi)]^\kappa \quad \text{(EGPD CDF)} \\
+& c_{\theta}(u, v) = \text{Bivariate Gumbel Copula Density} \\
+\\
+\text{Level 3: } & \text{Prior Distributions (Uniform Specification)} \\
+& \kappa \sim \text{Uniform}(0.1, 10) \\
+& \sigma \sim \text{Uniform}(0.1, 15) \\
+& \xi \sim \text{Uniform}(-0.2, 0.5) \\
+& \theta - 1 \sim \text{Uniform}(0, 10) \\
+\\
+\text{Level 4: } & \text{Support and Constraints} \\
+& \kappa, \sigma > 0 \\
+& \theta \in [1, 11] \\
+& x > 0 \quad \text{and } (1 + \xi \frac{x}{\sigma}) > 0
+\end{aligned}
+\]
+
+A typical sample from the model is generated as follows and generally shows extremes clustering with each other, depending on the copula parameter. THe red line is the 
+
+```{r}
+set.seed(46)
+param_egp_vec <- c(kappa = 1.5, sigma = 2.0, xi = 0.1)
+theta_true <- 2
+
+n_obs <- 1000
+
+# Generate simulated "observed" data
+sim_obs <- simulate_gumbel_markov_egpd(n_obs, theta_true, param_egp_vec)
+X_sim <- sim_obs$X
+```
+
+```{r, echo = FALSE}
+plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = "darkblue")
+
+# 2. Pre-calculate density to determine axis limits
+x_seq <- seq(0, max(X_sim), length.out = 500)
+y_dens <- sapply(x_seq, function(val) {
+  exp(margin_egp$lpdf(val, c(kappa=1.5, sigma=2.0, xi=0.1)))
+})
+
+# 3. Calculate max height of histogram to ensure we don't cut that either
+h <- hist(X_sim, plot = FALSE, breaks = 30)
+y_max <- max(c(h$density, y_dens)) * 1.1 # Add 10% buffer for the legend
+
+# 4. Create the histogram with explicit ylim
+hist(X_sim, freq = FALSE, breaks = 30, 
+     main = "Empirical vs. Theoretical Density", 
+     col = "grey", border = "white", xlab = "Value",
+     ylim = c(0, y_max)) # <--- This prevents the cutting
+
+# 5. Add the line
+lines(x_seq, y_dens, col = "red", lwd = 2)
+
+# 6. Add the legend
+legend("topright", 
+       legend = c("Empirical Data", "True EGPD Density"), 
+       col = c("grey", "red"), 
+       lwd = c(NA, 2), 
+       fill = c("grey90", NA), 
+       border = c("black", NA),
+       bty = "n")
+```
+
+```{r, echo=FALSE}
+load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
+```
+
+```{r, echo=FALSE}
+print(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta"))
+
+
+mcmc_recover_intervals(
+  as.array(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta")),
+  true = unlist(true_params)
+) + ggtitle("Parameter Recovery Check")
+
+mcmc_trace(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta"))
+mcmc_acf(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta"))
+pairs(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta"))
+mcmc_neff_hist(neff_ratio(stan_fit_ppc))
+mcmc_rhat_hist(rhat(stan_fit_ppc))
+
+```
+
+```{r, echo=FALSE}
+y_rep <- rstan::extract(stan_fit_ppc)$x_rep
+
+ppc_dens_overlay(X_sim, y_rep[1:100, ]) +
+  ggtitle("Posterior Predictive Check: Densities")
+
+ppc_stat(X_sim, y_rep, stat = "max") +
+  ggtitle("Posterior Predictive Check: Maximum Values")
+
+# Extremogram PPC (Temporal Dependence Validation)
+obs_ext <- calc_extremogram(X_sim)
+rep_exts <- t(apply(y_rep[1:100, ], 1, calc_extremogram))
+
+plot_df <- data.frame(
+  lag = 1:10, obs = obs_ext,
+  low = apply(rep_exts, 2, quantile, 0.025),
+  high = apply(rep_exts, 2, quantile, 0.975)
+)
+
+ggplot(plot_df, aes(x = lag)) +
+  geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
+  geom_line(aes(y = obs), color = "red", size = 1) +
+  labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval") +
+  theme_minimal()
+
+
+post_samples <- as.data.frame(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta")) %>%
+  pivot_longer(everything(), names_to = "parameter", values_to = "posterior")
+prior_data <- post_samples %>%
+  group_by(parameter) %>%
+  # We expand the sequence slightly to ensure we see the prior "box"
+  summarise(min_val = min(posterior) * 0.5, max_val = max(posterior) * 1.5) %>%
+  rowwise() %>%
+  mutate(x_seq = list(seq(min_val, max_val, length.out = 400))) %>%
+  unnest(x_seq) %>%
+  mutate(prior = case_when(
+    parameter == "kappa" ~ dunif(x_seq, 0.1, 10),
+    parameter == "sigma" ~ dunif(x_seq, 0.1, 15),
+    parameter == "xi"    ~ dunif(x_seq, -0.2, 0.5),
+    # Fixed the ifelse syntax and the missing closing parenthesis
+    parameter == "theta" ~ ifelse(x_seq >= 1 & x_seq <= 11, dunif(x_seq, 1, 11), 0),
+    TRUE ~ NA_real_
+  ))
+
+# Plotting
+ggplot() +
+  # We use geom_line for priors if they are flat to make them more visible
+  geom_area(data = prior_data, aes(x = x_seq, y = prior, fill = "Prior"), alpha = 0.3) +
+  geom_density(data = post_samples, aes(x = posterior, fill = "Posterior"), alpha = 0.7) +
+  geom_vline(
+    data = data.frame(
+      parameter = c("kappa", "sigma", "xi", "theta"),
+      true_val = unlist(true_params)
+    ),
+    aes(xintercept = true_val), color = "red", linetype = "dashed", size = 1
+  ) +
+  facet_wrap(~parameter, scales = "free") +
+  scale_fill_manual(values = c("Prior" = "grey70", "Posterior" = "blue")) +
+  theme_minimal() +
+  labs(title = "Prior-Posterior Sensitivity Analysis (Uniform Priors)",
+       subtitle = "Flat grey line represents the objective Uniform prior")
+
+return_periods <- c(100, 500, 1000, 5000, 10000)
+
+# Extract posterior draws
+draws <- as.data.frame(stan_fit_ppc, pars = c("kappa", "sigma", "xi"))
+
+# Function to calculate EGPD Quantile
+# (Internal consistency with your margin_egp object)
+calc_egpd_quantile <- function(p, kappa, sigma, xi) {
+  p_gpd <- p^(1 / kappa)
+  # Standard GPD quantile formula
+  if (abs(xi) < 1e-10) {
+    return(-sigma * log(1 - p_gpd))
+  } else {
+    return((sigma / xi) * ((1 - p_gpd)^(-xi) - 1))
+  }
+}
+
+# Calculate Return Levels for every MCMC draw
+rl_results <- map_df(return_periods, function(m) {
+  p_target <- 1 - (1 / m)
+
+  # Compute level for each draw
+  levels <- mapply(calc_egpd_quantile,
+    MoreArgs = list(p = p_target),
+    kappa = draws$kappa,
+    sigma = draws$sigma,
+    xi = draws$xi
+  )
+
+  # Compute True Return Level (from true_params)
+  true_level <- calc_egpd_quantile(
+    p_target,
+    true_params$kappa,
+    true_params$sigma,
+    true_params$xi
+  )
+
+  data.frame(
+    m = m,
+    mean_rl = mean(levels),
+    low_rl = quantile(levels, 0.025),
+    high_rl = quantile(levels, 0.975),
+    true_rl = true_level
+  )
+})
+
+# --- 12. VISUALIZE RETURN LEVEL PLOT ---
+ggplot(rl_results, aes(x = m)) +
+  geom_ribbon(aes(ymin = low_rl, ymax = high_rl), fill = "blue", alpha = 0.2) +
+  geom_line(aes(y = mean_rl, color = "Posterior Mean"), size = 1) +
+  geom_line(aes(y = true_rl, color = "True Value"), linetype = "dashed", size = 1) +
+  scale_x_log10(breaks = return_periods) +
+  labs(
+    title = "Return Level Plot with 95% Credible Intervals",
+    x = "Return Period (m observations)",
+    y = "Return Level (z_m)",
+    color = "Legend"
+  ) +
+  theme_minimal()
+```

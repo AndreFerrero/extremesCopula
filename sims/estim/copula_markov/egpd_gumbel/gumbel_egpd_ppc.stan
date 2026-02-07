@@ -73,10 +73,10 @@ transformed parameters {
 
 model {
   // --- Priors ---
-  kappa ~ lognormal(0, 1);
-  sigma ~ lognormal(0, 1);
-  xi ~ normal(0, 0.2);
-  thetam1 ~ exponential(0.1);
+  kappa ~ uniform(0.1, 10);
+  sigma ~ uniform(0.1, 15);
+  xi ~ uniform(-0.2, 0.5);
+  thetam1 ~ uniform(0, 10);
 
   // --- Likelihood (Conditional on prior_check) ---
   if (prior_check == 0) {
