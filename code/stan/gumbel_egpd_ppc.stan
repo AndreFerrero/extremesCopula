@@ -58,6 +58,7 @@ data {
   int<lower=2> T;
   vector<lower=0>[T] x;
   int<lower=0, upper=1> prior_check; // 1 = Skip Likelihood, 0 = Use Likelihood
+  int<lower=0, upper=1> run_ppc;
 }
 
 parameters {
@@ -92,26 +93,31 @@ model {
 
 generated quantities {
   vector[T] x_rep;
-  x_rep[1] = egpd_rng(kappa, sigma, xi);
   
-  // Rosenblat Transform
-  for (t in 2:T) {
-    real v_prev = exp(gpd_lcdf(x_rep[t-1] | sigma, xi) * kappa);
-    real w = uniform_rng(0, 1);
+  if (run_ppc == 1) {
+    x_rep[1] = egpd_rng(kappa, sigma, xi);
     
-    // Bisection solver
-    real low = 0.00001;
-    real high = 0.99999;
-    for (i in 1:16) {
-      real mid = (low + high) / 2.0;
-      if (gumbel_hfunc(mid, v_prev, theta) < w) low = mid;
-      else high = mid;
+    for (t in 2:T) {
+      real v_prev = exp(gpd_lcdf(x_rep[t-1] | sigma, xi) * kappa);
+      real w = uniform_rng(0, 1);
+      
+      // Bisection solver
+      real low = 0.00001;
+      real high = 0.99999;
+      for (i in 1:16) {
+        real mid = (low + high) / 2.0;
+        if (gumbel_hfunc(mid, v_prev, theta) < w) low = mid;
+        else high = mid;
+      }
+      real u_next = (low + high) / 2.0;
+      
+      // Inverse transformation
+      real g_inv_p = pow(u_next, 1.0/kappa);
+      if (abs(xi) < 1e-10) x_rep[t] = -sigma * log1m(g_inv_p);
+      else x_rep[t] = (sigma / xi) * (pow(1.0 - g_inv_p, -xi) - 1.0);
     }
-    real u_next = (low + high) / 2.0;
-    
-    // Inverse transformation
-    real g_inv_p = pow(u_next, 1.0/kappa);
-    if (abs(xi) < 1e-10) x_rep[t] = -sigma * log1m(g_inv_p);
-    else x_rep[t] = (sigma / xi) * (pow(1.0 - g_inv_p, -xi) - 1.0);
+  } else {
+    // Fill with dummy values (zeros) if not running PPC to save space/time
+    x_rep = rep_vector(0, T); 
   }
 }
