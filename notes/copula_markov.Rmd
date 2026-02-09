@@ -2,9 +2,10 @@
 title: "Copula Markov Models"
 output: pdf_document
 ---
-```{r, cache = TRUE, echo = FALSE}
+```{r, cache = TRUE, echo = FALSE, message = FALSE}
 library(copula)
 library(microbenchmark)
+library(rstan)
 
 # 1. THE GUMBEL H-FUNCTION (Conditional CDF: P(U <= u | V = v))
 gumbel_hfunc <- function(u, v, theta) {
@@ -501,6 +502,8 @@ legend("topright",
 load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
 ```
 
+
+Below we have the Stan mcmc results, diagnostics and Posterior Predictive Checks on key quantities (Densities, maxima, extremogram, return levels)
 ```{r, echo=FALSE}
 print(stan_fit_ppc, pars = c("kappa", "sigma", "xi", "theta"))
 
@@ -575,10 +578,9 @@ ggplot() +
     aes(xintercept = true_val), color = "red", linetype = "dashed", size = 1
   ) +
   facet_wrap(~parameter, scales = "free") +
-  scale_fill_manual(values = c("Prior" = "grey70", "Posterior" = "blue")) +
+  scale_fill_manual(values = c("Prior" = "grey70", "Posterior" = "lightblue")) +
   theme_minimal() +
-  labs(title = "Prior-Posterior Sensitivity Analysis (Uniform Priors)",
-       subtitle = "Flat grey line represents the objective Uniform prior")
+  labs(title = "Prior-Posterior Sensitivity Analysis (Uniform Priors)")
 
 return_periods <- c(100, 500, 1000, 5000, 10000)
 
