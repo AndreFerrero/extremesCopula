@@ -12,7 +12,7 @@ set.seed(1)
 # ------------------------------------------------------------
 # 1. Dimension and true copula parameter
 # ------------------------------------------------------------
-n <- 100            # sample size
+n <- 200            # sample size
 theta_true <- 4     # true Gumbel copula parameter
 
 # ------------------------------------------------------------
@@ -33,7 +33,8 @@ X <- qlnorm(U, mu_true, sigma_true)  # lognormal data
 # ------------------------------------------------------------
 mu_hat    <- mean(log(X))
 sigma_hat <- sd(log(X))
-u_hat     <- plnorm(X, mu_hat, sigma_hat)  # pseudo-observations
+u_par     <- plnorm(X, mu_hat, sigma_hat)  # pseudo-observations
+u_ranks <- pobs(X)
 
 # ------------------------------------------------------------
 # 5. Copula log-likelihood functions
@@ -50,13 +51,15 @@ loglik_gumbel <- function(theta, u) {
 theta_grid <- seq(1.05, 5, length.out = 100)
 
 ll_true <- sapply(theta_grid, loglik_gumbel, u = U)
-ll_pseudo <- sapply(theta_grid, loglik_gumbel, u = u_hat)
+ll_par <- sapply(theta_grid, loglik_gumbel, u = u_par)
+ll_ranks <- sapply(theta_grid, loglik_gumbel, u = u_ranks)
 
 plot(theta_grid, ll_true, type = "l", lwd = 2,
      xlab = expression(theta),
      ylab = "Log-likelihood",
      main = "Oracle vs Pseudo Likelihood")
-lines(theta_grid, ll_pseudo, col = "darkgreen", lwd = 2)
+lines(theta_grid, ll_par, col = "darkgreen", lwd = 2)
+lines(theta_grid, ll_ranks, col = "orange", lwd = 2)
 abline(v = theta_true, col = "red", lty = 2)
 legend("topright",
        legend = c("Oracle (true U)", "Pseudo (Uhat)", "True theta"),
@@ -87,9 +90,9 @@ joint_loglik <- function(par, x) {
 # ------------------------------------------------------------
 # 8. Parameter grids for slicing
 # ------------------------------------------------------------
-mu_grid    <- seq(-1, 1, length.out = 40)
-sigma_grid <- seq(0.05, 1.5, length.out = 40)
-theta_grid <- seq(1.05, 5, length.out = 40)
+mu_grid    <- seq(-1, 1, length.out = 100)
+sigma_grid <- seq(0.05, 1.5, length.out = 100)
+theta_grid <- seq(1.05, 5, length.out = 100)
 
 # Fix parameters for 2D slices
 mu_fix    <- mu_true
@@ -206,3 +209,78 @@ eigen(I_obs)$vectors
 true_H <- hessian(function(th) loglik_gumbel(th, U), theta)
 true_H
 eigen(true_H)
+
+# 1. Setup the 3D Grid
+# Note: Keep resolution manageable (e.g., 30-40) to avoid crashing R
+N_res <- 35
+mu_grid    <- seq(-0.5, 0.5, length.out = N_res)
+sigma_grid <- seq(0.5, 1.5, length.out = N_res)
+theta_grid <- seq(1.5, 6,   length.out = N_res)
+
+# Create the 3D coordinate space
+grid_3d <- expand.grid(mu = mu_grid, sigma = sigma_grid, theta = theta_grid)
+
+# 2. Compute the Joint Log-Likelihood for the entire volume
+# Using your existing joint_loglik function
+grid_3d$LL <- apply(grid_3d, 1, function(p) {
+  joint_loglik(c(p[1], p[2], p[3]), X)
+})
+
+save(grid_3d, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/joint/grid_ll.Rdata")
+load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/joint/grid_ll.Rdata")
+# 3. Visualization: 3D Isosurface
+# We plot "shells" of likelihood. The inner-most shell is the "peak".
+# Values far from the max are made transparent.
+max_ll <- max(grid_3d$LL, na.rm = TRUE)
+
+library(dplyr)
+library(ggplot2)
+
+# Profile Likelihood for Theta
+profile_theta <- grid_3d %>%
+  group_by(theta) %>%
+  summarize(max_LL = max(LL, na.rm = TRUE))
+
+ggplot(profile_theta, aes(x = theta, y = max_LL)) +
+  geom_line(size = 1) +
+  geom_vline(xintercept = theta_true, color = "red", linetype = "dashed") +
+  labs(title = "Profile Log-Likelihood for Theta",
+       subtitle = "If this is flat, Theta is not identified",
+       y = "Max Log-Likelihood (optimized over mu/sigma)")
+
+# Find the best sigma for each theta
+ridge_line <- grid_3d %>%
+  group_by(theta) %>%
+  filter(LL == max(LL, na.rm = TRUE))
+
+ggplot(ridge_line, aes(x = theta, y = sigma)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(aes(x = theta_true, y = sigma_true), color = "red", size = 3) +
+  labs(title = "The Identifiability Ridge",
+       x = "Copula Parameter (Theta)",
+       y = "Best Marginal Scale (Sigma)",
+       subtitle = "The line shows how Sigma 'compensates' for Theta")
+
+# Filter for the top 1% of points
+top_points <- grid_3d %>%
+  filter(LL > quantile(LL, 0.99, na.rm = TRUE))
+
+# Plot Sigma vs Theta for these top points
+ggplot(top_points, aes(x = theta, y = sigma, color = mu)) +
+  geom_point(alpha = 0.5) +
+  scale_color_viridis_c() +
+  theme_minimal() +
+  labs(title = "Top 1% Likelihood Points",
+       subtitle = "Shows the 'banana' shape of the confounding")
+
+# Pick 4 specific values of mu from your grid
+mu_slices <- mu_grid[seq(1, length(mu_grid), length.out = 4)]
+
+grid_3d %>%
+  filter(mu %in% mu_slices) %>%
+  ggplot(aes(x = theta, y = sigma, fill = LL)) +
+  geom_tile() +
+  facet_wrap(~mu, labeller = label_both) +
+  scale_fill_viridis_c() +
+  labs(title = "Likelihood Slices for different Mu levels",
+       x = "Theta", y = "Sigma")
