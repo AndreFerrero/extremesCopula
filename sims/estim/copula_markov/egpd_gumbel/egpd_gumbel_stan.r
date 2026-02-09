@@ -17,69 +17,8 @@ options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
 
 # --- 2. MATHEMATICAL ENGINE: EGPD & COPULA FUNCTIONS ---
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_gumbel_egpd.R")
 
-# Definition of the Extended Generalized Pareto Distribution (Naveau et al. 2016)
-margin_egp <- list(
-  name = "egp",
-  G_dist = function(u, param) u^param["kappa"],
-  G_inv = function(u, param) u^(1 / param["kappa"]),
-  g_dist = function(u, param) {
-    param["kappa"] * u^(param["kappa"] - 1)
-  },
-  cdf = function(x, param) {
-    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
-    margin_egp$G_dist(u, param)
-  },
-  lpdf = function(x, param) {
-    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
-    log(margin_egp$g_dist(u, param)) +
-      log(evd::dgpd(x / param["sigma"], shape = param["xi"])) -
-      log(param["sigma"])
-  },
-  quantile = function(p, param) {
-    param["sigma"] * evd::qgpd(
-      margin_egp$G_inv(p, param),
-      shape = param["xi"]
-    )
-  },
-  sample = function(n, param) {
-    U <- runif(n)
-    margin_egp$quantile(U, param)
-  }
-)
-
-# Gumbel h-function (Conditional CDF) for Markov transitions
-gumbel_hfunc <- function(u, v, theta) {
-  u <- pmax(pmin(u, 1 - 1e-12), 1e-12)
-  v <- pmax(pmin(v, 1 - 1e-12), 1e-12)
-  ln_u <- -log(u)
-  ln_v <- -log(v)
-  term <- ln_u^theta + ln_v^theta
-  C <- exp(-term^(1 / theta))
-  h <- C * (ln_v^(theta - 1)) * (term^(1 / theta - 1)) / v
-  return(h)
-}
-
-# Markov Simulation Engine using Bisection for Copula Inversion
-simulate_gumbel_markov_egpd <- function(n, theta, param_egp, burn = 100, bisec_it = 20) {
-  total_n <- n + burn
-  U <- numeric(total_n)
-  U[1] <- runif(1, 1e-5, 1 - 1e-5)
-  for (t in 2:total_n) {
-    v_prev <- U[t - 1]
-    w_target <- runif(1)
-    low <- 1e-10
-    high <- 1 - 1e-10
-    for (i in 1:bisec_it) {
-      mid <- (low + high) / 2
-      if (gumbel_hfunc(mid, v_prev, theta) < w_target) low <- mid else high <- mid
-    }
-    U[t] <- (low + high) / 2
-  }
-  U_final <- U[(burn + 1):total_n]
-  X <- margin_egp$quantile(U_final, param_egp)
-  return(list(X = X, U = U_final, n_failures = 0))
-}
 
 # Extremogram Calculation (Lag-dependent Tail dependence)
 calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
@@ -99,11 +38,12 @@ calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
 
 set.seed(46)
 true_params <- list(kappa = 1.5, sigma = 2.0, xi = 0.1, theta = 2.0)
-param_egp_vec <- c(kappa = 1.5, sigma = 2.0, xi = 0.1)
+param_egp <- c(kappa = 1.5, sigma = 2.0, xi = 0.1)
+theta_true <- true_params[["theta"]]
 n_obs <- 1000
 
 # Generate simulated "observed" data
-sim_obs <- simulate_gumbel_markov_egpd(n_obs, true_params[["theta"]], param_egp_vec)
+sim_obs <- simulate_gumbel_markov_egpd(n_obs, theta_true, param_egp)
 X_sim <- sim_obs$X
 
 plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = "darkblue")
@@ -112,7 +52,7 @@ plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = 
 
 # Combined model for Prior/Posterior and PPC
 # Replace the file path with your local path
-mod_ppc <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/gumbel_egpd_ppc.stan")
+mod_ppc <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd_ppc.stan")
 
 # --- 5. PHASE 1: PRIOR PREDICTIVE CHECKS (PPC) ---
 

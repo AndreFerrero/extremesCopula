@@ -1,0 +1,28 @@
+# Markov Simulation Engine using Bisection for Copula Inversion
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
+
+gumbel_h <- copula_gumbel$h_dist
+egp <- margin_egp
+
+simulate_gumbel_markov_egpd <- function(n, theta, param_egp, burn = 100, bisec_it = 20) {
+  total_n <- n + burn
+  U <- numeric(total_n)
+  U[1] <- runif(1, 1e-5, 1 - 1e-5)
+
+  # Bisection algo: inverting conditional distribution function
+  for (t in 2:total_n) {
+    v_prev <- U[t - 1]
+    w_target <- runif(1)
+    low <- 1e-10
+    high <- 1 - 1e-10
+    for (i in 1:bisec_it) {
+      mid <- (low + high) / 2
+      if (gumbel_h(mid, v_prev, theta) < w_target) low <- mid else high <- mid
+    }
+    U[t] <- (low + high) / 2
+  }
+  U_final <- U[(burn + 1):total_n]
+  X <- egp$quantile(U_final, param_egp)
+  return(list(X = X, U = U_final, n_failures = 0))
+}
