@@ -19,11 +19,10 @@ rstan_options(auto_write = TRUE)
 # --- 2. MATHEMATICAL ENGINE: EGPD & COPULA FUNCTIONS ---
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_gumbel_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
 
-gumbel_h <- copula_gumbel$h_dist
 
-mod_sim <- simulate_gumbel_markov
+mod_sim <- simulate_copula_markov
 
 # Extremogram Calculation (Lag-dependent Tail dependence)
 calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
@@ -47,7 +46,7 @@ theta_true <- 2.0
 n_obs <- 1000
 
 # Generate simulated "observed" data
-sim_obs <- mod_sim(n = n_obs, copula_h = gumbel_h, theta = theta_true, margin = margin_egp, margin_param = param_egp)
+sim_obs <- mod_sim(n = n_obs, copula = copula_gumbel, theta = theta_true, margin = margin_egp, margin_param = param_egp)
 X_sim <- sim_obs$X
 
 plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = "darkblue")

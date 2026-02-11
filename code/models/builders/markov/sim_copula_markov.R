@@ -1,6 +1,6 @@
 # Markov Simulation Engine using Bisection for Copula Inversion
 
-simulate_gumbel_markov <- function(n, copula_h, theta, margin, margin_param, burn = 100, bisec_it = 20) {
+simulate_copula_markov <- function(n, copula, theta, margin, margin_param, burn = 100, bisec_it = 20) {
   total_n <- n + burn
   U <- numeric(total_n)
   U[1] <- runif(1, 1e-5, 1 - 1e-5)
@@ -13,7 +13,7 @@ simulate_gumbel_markov <- function(n, copula_h, theta, margin, margin_param, bur
     high <- 1 - 1e-10
     for (i in 1:bisec_it) {
       mid <- (low + high) / 2
-      if (copula_h(mid, v_prev, theta) < w_target) low <- mid else high <- mid
+      if (copula$h_dist(mid, v_prev, theta) < w_target) low <- mid else high <- mid
     }
     U[t] <- (low + high) / 2
   }
