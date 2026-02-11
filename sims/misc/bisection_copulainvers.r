@@ -88,42 +88,79 @@ mb <- microbenchmark(
 )
 print(mb)
 
-# 1. Generate samples
-v_fixed <- 0.5
-theta_fixed <- 2
 
-# We need to capture the 'w' used for bisection to compare
-# Let's just generate the u's and then 'un-transform' them
-u_bis <- replicate(10000, sample_bisection(v_fixed, theta_fixed, iterations = 20))
-u_pkg <- replicate(10000, sample_copula_pkg(v_fixed, theta_fixed)$val)
+# --- 1. SETUP ---
+theta_values <- c(1.1, 1.5, 2.0, 3.0, 5.0, 8.0)
+T_length     <- 1000 
+n_mc         <- 50    # Number of Monte Carlo iterations
+q_thresh     <- 0.98   
+set.seed(42)
 
-# 2. Apply the h-function to 'un-transform' them back to the probability space
-w_bis <- gumbel_hfunc(u_bis, v_fixed, theta_fixed)
-w_pkg <- gumbel_hfunc(u_pkg, v_fixed, theta_fixed)
+# Theoretical Lambda_U formula
+theo_lambda_u <- function(theta) 2 - 2^(1/theta)
 
-# 3. NOW run the KS test on the W values
-ks_bis <- ks.test(w_bis, "punif")
-ks_pkg <- ks.test(w_pkg, "punif")
+# Storage for MC results
+mc_results <- list()
 
-print(ks_bis)
-print(ks_pkg)
-
-# Generate a long Markov chain using bisection
-n_long <- 5000
-theta_test <- 3
-u_series <- numeric(n_long)
-u_series[1] <- runif(1)
-
-for(t in 2:n_long) {
-  u_series[t] <- sample_bisection(u_series[t-1], theta_test, iterations = 25)
+# --- 2. MONTE CARLO LOOP ---
+for (th in theta_values) {
+  
+  # Temporary storage for this specific theta's 50 runs
+  tau_sims    <- numeric(n_mc)
+  lambda_sims <- numeric(n_mc)
+  
+  for (m in 1:n_mc) {
+    # Generate Markov sequence
+    u <- numeric(T_length)
+    u[1] <- runif(1)
+    for(t in 2:T_length) {
+      u[t] <- sample_bisection(u[t-1], th, iterations = 25)
+    }
+    
+    # Calculate empirical metrics for this specific run
+    tau_sims[m]    <- cor(u[-T_length], u[-1], method = "kendall")
+    
+    excess         <- u > q_thresh
+    lambda_sims[m] <- mean(excess[-1] & excess[-T_length]) / mean(excess)
+  }
+  
+  # Calculate Theoreticals
+  tau_theo    <- 1 - 1/th
+  lambda_theo <- theo_lambda_u(th)
+  
+  # Store Aggregated Statistics
+  mc_results[[as.character(th)]] <- data.frame(
+    Theta       = th,
+    Theo_Tau    = round(tau_theo, 4),
+    Mean_Tau    = round(mean(tau_sims), 4),
+    SD_Tau      = round(sd(tau_sims), 4),
+    Tau_Bias    = round(mean(tau_sims) - tau_theo, 4),
+    Theo_Lambda = round(lambda_theo, 4),
+    Mean_Lambda = round(mean(lambda_sims, na.rm = TRUE), 4),
+    SD_Lambda   = round(sd(lambda_sims, na.rm = TRUE), 4),
+    Lambda_Bias = round(mean(lambda_sims, na.rm = TRUE) - lambda_theo, 4)
+  )
 }
 
-# Plot ACF of the ranks
-acf(u_series, main = paste("Rank ACF (Theta =", theta_test, ")"))
+# --- 3. FINAL OUTPUT TABLE ---
+results_table <- do.call(rbind, mc_results)
+print(results_table, row.names = FALSE)
 
-# Estimate empirical tau from the simulated sequence
-emp_tau <- cor(u_series[-n_long], u_series[-1], method = "kendall")
-theo_tau <- 1 - 1/theta_test
+T_plot <- 5000
+u2 <- numeric(T_plot)
+theta_plot <- 3
 
-cat("Theoretical Tau:", theo_tau, "\n")
-cat("Empirical Tau:  ", emp_tau, "\n")
+u2[1] <- runif(1)
+for(t in 2:T_plot) {
+u2[t] <- sample_bisection(u2[t-1], theta_plot, iterations = 25)
+}
+
+plot(u2[-T_plot], u2[-1], 
+     pch = 16, col = rgb(0, 0, 1, 0.2),
+     xlab = expression(U[t-1]), ylab = expression(U[t]),
+     main = paste0("Pairs plot, theta = ", theta_plot))
+abline(0, 1, col = "red", lty = 2)
+
+w_t <- gumbel_hfunc(u2[-T_plot], u2[-1], theta_plot)
+
+hist(w_t)
