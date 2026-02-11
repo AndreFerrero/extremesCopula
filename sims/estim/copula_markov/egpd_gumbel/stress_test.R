@@ -31,9 +31,9 @@ sim_frechet <- mod_sim(n = n_obs, copula = copula_gumbel, theta = theta_true, ma
 X_frechet <- sim_frechet$X
 
 plot(1:n_obs, X_frechet, type = "l", main = "Simulated Extremal Time Series", col = "darkblue")
-hist(X_frechet)
+hist(X_frechet, breaks = 50)
 
-stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd_ppc.stan")
+stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd.stan")
 
 stan_data_frechet <- list(T = length(X_frechet), x = X_frechet, unif_prior = 0, prior_check = 0, run_ppc = 1, I = 25)
 
@@ -92,6 +92,9 @@ ggplot(plot_df, aes(x = lag)) +
   geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
   geom_line(aes(y = obs), color = "red", size = 1) +
   labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval") +
+  geom_point(aes(y = obs), color = "red") +
+  # Force integer breaks on the x-axis
+  scale_x_continuous(breaks = 1:10) +
   theme_minimal()
 
 # --- 11. RETURN LEVEL ASSESSMENT (STRESS TEST: EGPD FIT TO FRECHET DATA) ---
@@ -234,6 +237,9 @@ ggplot(plot_df, aes(x = lag)) +
   geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
   geom_line(aes(y = obs), color = "red", size = 1) +
   labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval") +
+  geom_point(aes(y = obs), color = "red") +
+  # Force integer breaks on the x-axis
+  scale_x_continuous(breaks = 1:10) +
   theme_minimal()
 
 # --- 11. RETURN LEVEL ASSESSMENT (STRESS TEST: EGPD FIT TO lognorm DATA) ---
