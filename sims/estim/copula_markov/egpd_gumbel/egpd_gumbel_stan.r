@@ -55,7 +55,7 @@ plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = 
 
 # Combined model for Prior/Posterior and PPC
 # Replace the file path with your local path
-stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd_ppc.stan")
+stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd.stan")
 
 # --- 5. PHASE 1: PRIOR PREDICTIVE CHECKS (PPC) ---
 
@@ -75,11 +75,11 @@ ppc_ribbon(X_sim, y_prior) +
 
 # --- 6. PHASE 2: POSTERIOR INFERENCE ---
 
-stan_data_post_ppc <- list(T = length(X_sim), x = X_sim, unif_prior = 0, prior_check = 0, run_ppc = 1, I = 25)
+stan_data <- list(T = length(X_sim), x = X_sim, unif_prior = 0, prior_check = 0, run_ppc = 1, I = 25)
 
 stan_fit_ppc <- sampling(
   stan_mod,
-  data = stan_data_post_ppc,
+  data = stan_data,
   iter = 3000, chains = 4, cores = 4, seed = 42,
   control = list(adapt_delta = 0.90, max_treedepth = 10)
 )
@@ -87,6 +87,20 @@ stan_fit_ppc <- sampling(
 # save(stan_fit_ppc, X_sim, true_params, param_egp, theta_true, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_3kmcmc_4chains_xsim3k_unifpriors.Rdata")
 
 # load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
+
+library(loo)
+
+# 1. Extract the log-likelihood matrix
+# Stan outputs log_lik as [samples x observations]
+log_lik_matrix <- extract_log_lik(stan_fit_ppc)
+
+# 2. Compute PSIS-LOO (Pareto Smoothed Importance Sampling)
+loo_result <- loo(log_lik_matrix)
+
+# 3. Print the summary
+print(loo_result)
+
+plot(loo_result, label_points = TRUE)
 
 # --- 7. PHASE 3: MCMC DIAGNOSTICS & RECOVERY ---
 
@@ -127,6 +141,9 @@ ggplot(plot_df, aes(x = lag)) +
   geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
   geom_line(aes(y = obs), color = "red", size = 1) +
   labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval") +
+  geom_point(aes(y = obs), color = "red") +
+  # Force integer breaks on the x-axis
+  scale_x_continuous(breaks = 1:10) +
   theme_minimal()
 
 # --- 9. PHASE 5: SENSITIVITY - PRIOR VS POSTERIOR ---
