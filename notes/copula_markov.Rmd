@@ -544,7 +544,10 @@ plot_df <- data.frame(
 ggplot(plot_df, aes(x = lag)) +
   geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
   geom_line(aes(y = obs), color = "red", size = 1) +
-  labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval") +
+  labs(title = "Extremogram PPC", subtitle = "95% Model Credible Interval")  +
+  geom_point(aes(y = obs), color = "red") +
+  # Force integer breaks on the x-axis
+  scale_x_continuous(breaks = 1:10) +
   theme_minimal()
 
 
