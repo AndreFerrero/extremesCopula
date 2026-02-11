@@ -57,14 +57,17 @@ functions {
 data {
   int<lower=2> T;
   vector<lower=0>[T] x;
+  int<lower=0, upper=1> unif_prior; // 1 for unifort priors
   int<lower=0, upper=1> prior_check; // 1 = Skip Likelihood, 0 = Use Likelihood
-  int<lower=0, upper=1> run_ppc;
+  int<lower=0, upper=1> run_ppc; // 1 = Run ppc, 0 = Simple model fitting
+  int<lower=16> I; // Bisection solver precision
 }
 
 parameters {
-  real<lower=0.01> kappa;
-  real<lower=0.01> sigma;
-  real<lower=-0.5, upper=0.5> xi; 
+  real<lower=0, upper=min(x)> mu;
+  real<lower=0> kappa;
+  real<lower=0> sigma;
+  real<lower=0, upper=0.5> xi; 
   real<lower=0> thetam1; 
 }
 
@@ -74,18 +77,26 @@ transformed parameters {
 
 model {
   // --- Priors ---
-  kappa ~ uniform(0.1, 10);
-  sigma ~ uniform(0.1, 15);
-  xi ~ uniform(-0.2, 0.5);
-  thetam1 ~ uniform(0, 10);
+  if (unif_prior == 0) {
+    // Weakly Informative Priors
+    mu ~ normal(5, 2.5); 
+    kappa ~ lognormal(2, 1);
+    sigma ~ exponential(0.1);
+    xi ~ gamma(2, 10);
+    thetam1 ~ gamma(2, 1);
+  }
 
   // --- Likelihood (Conditional on prior_check) ---
   if (prior_check == 0) {
-    target += egpd_lpdf(x[1] | kappa, sigma, xi);
+
+    target += egpd_lpdf(x[1] - mu | kappa, sigma, xi);
+
     for (t in 2:T) {
-      real u = exp(gpd_lcdf(x[t]   | sigma, xi) * kappa);
-      real v = exp(gpd_lcdf(x[t-1] | sigma, xi) * kappa);
-      target += egpd_lpdf(x[t] | kappa, sigma, xi);
+      real u = exp(gpd_lcdf(x[t] - mu | sigma, xi) * kappa);
+      real v = exp(gpd_lcdf(x[t-1] - mu| sigma, xi) * kappa);
+
+      target += egpd_lpdf(x[t]  - mu| kappa, sigma, xi);
+
       target += gumbel_copula_lpdf(u| v, theta);
     }
   }
@@ -95,26 +106,31 @@ generated quantities {
   vector[T] x_rep;
   
   if (run_ppc == 1) {
-    x_rep[1] = egpd_rng(kappa, sigma, xi);
+    x_rep[1] = mu + egpd_rng(kappa, sigma, xi);
     
     for (t in 2:T) {
-      real v_prev = exp(gpd_lcdf(x_rep[t-1] | sigma, xi) * kappa);
+      real v_prev = exp(gpd_lcdf(x_rep[t-1] - mu | sigma, xi) * kappa);
       real w = uniform_rng(0, 1);
       
       // Bisection solver
       real low = 0.00001;
       real high = 0.99999;
-      for (i in 1:16) {
+      for (i in 1:I) {
         real mid = (low + high) / 2.0;
         if (gumbel_hfunc(mid, v_prev, theta) < w) low = mid;
         else high = mid;
       }
       real u_next = (low + high) / 2.0;
       
-      // Inverse transformation
+      // Inverse transformation with quantile
       real g_inv_p = pow(u_next, 1.0/kappa);
-      if (abs(xi) < 1e-10) x_rep[t] = -sigma * log1m(g_inv_p);
-      else x_rep[t] = (sigma / xi) * (pow(1.0 - g_inv_p, -xi) - 1.0);
+      real excess;
+      if (abs(xi) < 1e-10) {
+          excess = -sigma * log1m(g_inv_p);
+      } else {
+          excess = (sigma / xi) * (pow(1.0 - g_inv_p, -xi) - 1.0);
+      }
+      x_rep[t] = mu + excess;
     }
   } else {
     // Fill with dummy values (zeros) if not running PPC to save space/time
