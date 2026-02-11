@@ -1,4 +1,4 @@
-source("libs/packages.R")
+source("code/packages.R")
 
 copula_gumbel <- list(
 
