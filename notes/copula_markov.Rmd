@@ -359,7 +359,7 @@ print(results_table, row.names = FALSE)
 ```{r, echo = FALSE, cache=TRUE}
 T_plot <- 5000
 u2 <- numeric(T_plot)
-theta_plot <- 3
+theta_plot <- 8
 
 u2[1] <- runif(1)
 for(t in 2:T_plot) {
@@ -499,7 +499,7 @@ legend("topright",
 ```
 
 ```{r, echo=FALSE}
-load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
+load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/res/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
 ```
 
 
@@ -525,7 +525,8 @@ mcmc_rhat_hist(rhat(stan_fit_ppc))
 y_rep <- rstan::extract(stan_fit_ppc)$x_rep
 
 ppc_dens_overlay(X_sim, y_rep[1:100, ]) +
-  ggtitle("Posterior Predictive Check: Densities")
+  ggtitle("Posterior Predictive Check: Densities") +
+    coord_cartesian(xlim = c(0, 20))
 
 ppc_stat(X_sim, y_rep, stat = "max") +
   ggtitle("Posterior Predictive Check: Maximum Values")
