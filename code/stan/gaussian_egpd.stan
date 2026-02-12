@@ -61,7 +61,7 @@ model {
   kappa ~ lognormal(2, 1);
   sigma ~ exponential(0.1);
   xi ~ gamma(2, 10);
-  rho ~ normal(0, 0.5); // Prior on rho
+  rho ~ normal(0, 0.5);
 
   if (prior_check == 0) {
     // Likelihood: First observation
