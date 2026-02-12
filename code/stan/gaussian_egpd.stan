@@ -20,6 +20,10 @@ functions {
     return log(kappa) + (kappa - 1) * log_G + log_g;
   }
 
+  real egpd_lcdf(real x, real kappa, real sigma, real xi) {
+    return gpd_lcdf(x | sigma, xi) * kappa;
+  }
+
   real egpd_rng(real kappa, real sigma, real xi) {
     real p_gpd = pow(uniform_rng(0, 1), 1.0/kappa);
     if (abs(xi) < 1e-5) return -sigma * log1m(p_gpd);
@@ -65,8 +69,8 @@ model {
 
     // Markov loop
     for (t in 2:T) {
-      real u = exp(gpd_lcdf(x[t] - mu | sigma, xi) * kappa);
-      real v = exp(gpd_lcdf(x[t-1] - mu | sigma, xi) * kappa);
+      real u = exp(egpd_lcdf(x[t] - mu | kappa, sigma, xi));
+      real v = exp(egpd_lcdf(x[t-1] - mu | kappa, sigma, xi));
 
       target += egpd_lpdf(x[t] - mu | kappa, sigma, xi);
       target += gaussian_copula_lpdf(u| v, rho);
