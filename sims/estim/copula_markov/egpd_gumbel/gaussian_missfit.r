@@ -7,11 +7,13 @@ library(tidyr)
 library(dplyr)
 library(purrr)
 library(evd)
+library(loo)
 
 options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
 
 # --- 2. MATHEMATICAL ENGINE: EGPD & COPULA FUNCTIONS ---
+source("C:/Users/Andrea Ferrero/extremesCopula/code/handy_funs.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/frechet.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
@@ -29,30 +31,68 @@ rho_true <- 0.7
 n_obs <- 1000
 
 # Generate simulated "observed" data
-sim_obs <- mod_sim(n = n_obs, copula = copula_gaussian, theta = rho_true, margin = margin_egp, margin_param = param_egp)
-X_sim <- sim_obs$X
+gaussian_egpd_data <- mod_sim(n = n_obs, copula = copula_gaussian, theta = rho_true, margin = margin_egp, margin_param = param_egp)
+X_sim <- gaussian_egpd_data$X
 
 plot(1:n_obs, X_sim, type = "l", main = "Simulated Extremal Time Series", col = "darkblue")
 hist(X_sim, breaks = 50)
 
-stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd.stan")
+lag_plot(X_sim)
 
-stan_data <- list(T = length(X_sim), x = X_sim, unif_prior = 0, prior_check = 0, run_ppc = 1, I = 25)
+# Define data to feed into stan models
+stan_data_gumbel <- list(T = length(X_sim), x = X_sim, prior_check = 0, run_ppc = 1, I = 25)
 
-fit_wrong <- sampling(stan_mod, data = stan_data, iter = 2000, chains = 4, seed= 42)
+stan_data_gaussian <- list(T = length(X_sim), x = X_sim, prior_check = 0, run_ppc = 1)
 
-# Check the estimated theta
-print(fit_wrong, pars = "theta")
+# Compile models
+gumbel_egpd_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd.stan")
+
+gaussian_egpd_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gaussian_egpd.stan")
+
+# Fit models
+gumbel_fit <- sampling(gumbel_egpd_mod, data = stan_data_gumbel, iter = 2000, chains = 4, seed = 42)
+
+gaussian_fit <- sampling(gaussian_egpd_mod, data = stan_data_gaussian, iter = 2000, chains = 4, seed = 42)
+
+### LOO Comparison
+
+# 1. Extract the log-likelihood matrix
+# Stan outputs log_lik as [samples x observations]
+gumbel_log_lik <- extract_log_lik(gumbel_fit)
+gaussian_log_lik <- extract_log_lik(gaussian_fit)
+
+# 2. Compute PSIS-LOO (Pareto Smoothed Importance Sampling)
+gumbel_loo <- loo(gumbel_log_lik)
+gaussian_loo <- loo(gaussian_log_lik)
+
+# 3. Print the summary
+print(gumbel_loo)
+print(gaussian_loo)
+
+loo_compare(gumbel_loo, gaussian_loo)
+
+########################################
+# Check the estimated dependence parameter
+print(gumbel_fit, pars = "theta")
+print(gaussian_fit, pars = "rho")
 
 # --- 8. PHASE 4: POSTERIOR PREDICTIVE CHECKS (PPC) ---
 
-y_rep <- rstan::extract(fit_wrong)$x_rep
+y_rep_gumbel <- rstan::extract(gumbel_fit)$x_rep
+y_rep_gaussian <- rstan::extract(gaussian_fit)$x_rep
 
-ppc_dens_overlay(X_sim, y_rep[1:100, ]) +
+ppc_dens_overlay(X_sim, y_rep_gumbel[1:100, ]) +
   ggtitle("Posterior Predictive Check: Densities") +
-    coord_cartesian(xlim = c(0, 10))
+  coord_cartesian(xlim = c(0, 10))
 
-ppc_stat(X_sim, y_rep, stat = "max") +
+ppc_stat(X_sim, y_rep_gumbel, stat = "max") +
+  ggtitle("Posterior Predictive Check: Maximum Values")
+
+ppc_dens_overlay(X_sim, y_rep_gaussian[1:100, ]) +
+  ggtitle("Posterior Predictive Check: Densities") +
+  coord_cartesian(xlim = c(0, 10))
+
+ppc_stat(X_sim, y_rep_gaussian, stat = "max") +
   ggtitle("Posterior Predictive Check: Maximum Values")
 
 # Extremogram PPC (Temporal Dependence Validation)
@@ -70,15 +110,16 @@ calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
 }
 
 obs_ext <- calc_extremogram(X_sim)
-rep_exts <- t(apply(y_rep[1:100, ], 1, calc_extremogram))
 
-plot_df <- data.frame(
+rep_exts_gumbel <- t(apply(y_rep_gumbel[1:100, ], 1, calc_extremogram))
+
+plot_df_gumbel <- data.frame(
   lag = 1:10, obs = obs_ext,
-  low = apply(rep_exts, 2, quantile, 0.025),
-  high = apply(rep_exts, 2, quantile, 0.975)
+  low = apply(rep_exts_gumbel, 2, quantile, 0.025),
+  high = apply(rep_exts_gumbel, 2, quantile, 0.975)
 )
 
-ggplot(plot_df, aes(x = lag)) +
+ggplot(plot_df_gumbel, aes(x = lag)) +
   # Uncertainty Ribbon
   geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
   # Observed Data Line
@@ -86,16 +127,42 @@ ggplot(plot_df, aes(x = lag)) +
   # Points to emphasize each discrete lag
   geom_point(aes(y = obs), color = "red") +
   # Force integer breaks on the x-axis
-  scale_x_continuous(breaks = 1:10) + 
+  scale_x_continuous(breaks = 1:10) +
   labs(
-    title = "Extremogram PPC", 
+    title = "Extremogram PPC - Gumbel model",
     subtitle = "95% Model Credible Interval",
     x = "Lag (Steps in Time)",
     y = "Tail Dependence (rho)"
   ) +
   theme_minimal()
 
-  
+
+rep_exts_gaussian <- t(apply(y_rep_gaussian[1:100, ], 1, calc_extremogram))
+
+plot_df_gaussian <- data.frame(
+  lag = 1:10, obs = obs_ext,
+  low = apply(rep_exts_gaussian, 2, quantile, 0.025),
+  high = apply(rep_exts_gaussian, 2, quantile, 0.975)
+)
+
+ggplot(plot_df_gaussian, aes(x = lag)) +
+  # Uncertainty Ribbon
+  geom_ribbon(aes(ymin = low, ymax = high), fill = "blue", alpha = 0.2) +
+  # Observed Data Line
+  geom_line(aes(y = obs), color = "red", linewidth = 1) +
+  # Points to emphasize each discrete lag
+  geom_point(aes(y = obs), color = "red") +
+  # Force integer breaks on the x-axis
+  scale_x_continuous(breaks = 1:10) +
+  labs(
+    title = "Extremogram PPC - Gaussian model",
+    subtitle = "95% Model Credible Interval",
+    x = "Lag (Steps in Time)",
+    y = "Tail Dependence (rho)"
+  ) +
+  theme_minimal()
+
+
 # --- 11. RETURN LEVEL ASSESSMENT ---
 
 # Define the Return Periods of interest (in number of observations)
@@ -103,7 +170,7 @@ ggplot(plot_df, aes(x = lag)) +
 return_periods <- c(100, 500, 1000, 5000, 10000)
 
 # Extract posterior draws
-draws <- as.data.frame(fit_wrong, pars = c("kappa", "sigma", "xi"))
+draws <- as.data.frame(gumbel_fit, pars = c("kappa", "sigma", "xi"))
 
 # Function to calculate EGPD Quantile
 # (Internal consistency with your margin_egp object)

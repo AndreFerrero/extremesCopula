@@ -17,6 +17,7 @@ options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
 
 # --- 2. MATHEMATICAL ENGINE: EGPD & COPULA FUNCTIONS ---
+source("C:/Users/Andrea Ferrero/extremesCopula/code/handy_funs.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
