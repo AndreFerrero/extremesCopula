@@ -14,10 +14,10 @@ library(evd)
 # Load your custom models
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_gumbel_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
 
 # Settings for computation
-options(mc.cores = parallel::detectCores())
+options(mc.cores = 4)
 rstan_options(auto_write = TRUE)
 library(future)
 plan(multisession)
@@ -43,9 +43,9 @@ egpd_gumbel_single_gen <- function(n_obs) {
   
   # B. Simulate a Markov Chain dataset from these parameters
 
-  sim <- simulate_gumbel_markov(
+  sim <- simulate_copula_markov(
     n = n_obs, 
-    copula_h = copula_gumbel$h_dist, 
+    copula = copula_gumbel,
     theta = true_theta, 
     margin = margin_egp, 
     margin_param = c(kappa = true_kappa, sigma = true_sigma, xi = true_xi)
@@ -65,7 +65,6 @@ egpd_gumbel_single_gen <- function(n_obs) {
     generated = list(
       T = n_obs,
       x = as.vector(sim$X + true_mu),
-      unif_prior = 0,
       prior_check = 0,
       run_ppc = 0,
       I = 25
@@ -75,14 +74,14 @@ egpd_gumbel_single_gen <- function(n_obs) {
 
 # --- 3. INITIALIZE SBC OBJECTS ---
 
-# Create the generator object (N=100 iterations is robust for a PhD)
+# Create the generator object
 set.seed(46)
-sbc_sims <- 50
+sbc_sims <- 150
 sbc_gen <- SBC_generator_function(egpd_gumbel_single_gen, n_obs = 500)
 sbc_data <- generate_datasets(sbc_gen, sbc_sims)
 
 # 1. Compile the model once
-stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd_ppc.stan")
+stan_mod <- stan_model("C:/Users/Andrea Ferrero/extremesCopula/code/stan/gumbel_egpd.stan")
 
 # 2. Define the backend specifically for rstan
 sbc_backend <- SBC_backend_rstan_sample(
@@ -111,6 +110,10 @@ plot_rank_hist(sbc_results) +
 plot_ecdf(sbc_results) +
   theme_minimal() +
   labs(title = "ECDF Plot")
+
+plot_ecdf_diff(sbc_results) +
+  theme_minimal() +
+  labs(title = "ECDF Difference Plot")
 
 # C. Diagnostic Summary (Divergences and R-hat)
 # High R-hat or many divergences will be flagged here
