@@ -14,7 +14,7 @@ library(evd)
 # Load your custom models
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copula_markov/sim_copula_markov.R")
 
 # Settings for computation
 options(mc.cores = 4)
@@ -94,7 +94,7 @@ sbc_backend <- SBC_backend_rstan_sample(
 
 # --- 4. EXECUTE CALIBRATION ---
 sbc_results <- compute_SBC(sbc_data, sbc_backend, cache_mode = "results",
-    cache_location = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/res/sbc_egpd_gumbel_cache.rds")
+    cache_location = "C:/Users/Andrea Ferrero/extremesCopula/sims/copula_markov/egpd_gumbel/res/sbc_egpd_gumbel_cache.rds")
 
 # --- 5. ANALYSIS & VISUALIZATION ---
 

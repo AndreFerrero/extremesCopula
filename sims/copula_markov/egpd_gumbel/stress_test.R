@@ -15,7 +15,7 @@ rstan_options(auto_write = TRUE)
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/frechet.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copula_markov/sim_copula_markov.R")
 
 mod_sim <- simulate_copula_markov
 
@@ -43,7 +43,7 @@ stan_fit_frechet <- sampling(
     iter = 2000, chains = 4, cores = 4, seed = 42
 )
 
-save(stan_fit_frechet, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/res/seed42_stan_fit_frechet_2kmcmc_4chains_seed46_1kobs.Rdata")
+save(stan_fit_frechet, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/copula_markov/egpd_gumbel/res/seed42_stan_fit_frechet_2kmcmc_4chains_seed46_1kobs.Rdata")
 
 print(stan_fit_frechet, pars = c("mu", "kappa", "sigma", "xi", "theta"))
 
@@ -188,7 +188,7 @@ stan_fit_lognorm <- sampling(
     iter = 2000, chains = 4, cores = 4, seed = 42
 )
 
-save(stan_fit_lognorm, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/res/seed42_stan_fit_lognorm_2kmcmc_4chains_seed46_3kobs.Rdata")
+save(stan_fit_lognorm, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/copula_markov/egpd_gumbel/res/seed42_stan_fit_lognorm_2kmcmc_4chains_seed46_3kobs.Rdata")
 
 print(stan_fit_lognorm, pars = c("mu", "kappa", "sigma", "xi", "theta"))
 

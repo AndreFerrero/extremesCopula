@@ -20,7 +20,7 @@ rstan_options(auto_write = TRUE)
 source("C:/Users/Andrea Ferrero/extremesCopula/code/handy_funs.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copula_markov/sim_copula_markov.R")
 
 
 mod_sim <- simulate_copula_markov
@@ -85,9 +85,9 @@ stan_fit_ppc <- sampling(
   control = list(adapt_delta = 0.90, max_treedepth = 10)
 )
 
-# save(stan_fit_ppc, X_sim, true_params, param_egp, theta_true, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_3kmcmc_4chains_xsim3k_unifpriors.Rdata")
+# save(stan_fit_ppc, X_sim, true_params, param_egp, theta_true, file = "C:/Users/Andrea Ferrero/extremesCopula/sims/copula_markov/egpd_gumbel/seed46_ppcfit_3kmcmc_4chains_xsim3k_unifpriors.Rdata")
 
-# load("C:/Users/Andrea Ferrero/extremesCopula/sims/estim/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
+# load("C:/Users/Andrea Ferrero/extremesCopula/sims/copula_markov/egpd_gumbel/seed46_ppcfit_2kmcmc_4chains_xsim1k.Rdata")
 
 library(loo)
 

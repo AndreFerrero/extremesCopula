@@ -18,7 +18,7 @@ source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/egp.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/margins/frechet.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gumbel.r")
 source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copulas/gaussian.r")
-source("C:/Users/Andrea Ferrero/extremesCopula/code/models/builders/markov/sim_copula_markov.R")
+source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copula_markov/sim_copula_markov.R")
 
 mod_sim <- simulate_copula_markov
 
