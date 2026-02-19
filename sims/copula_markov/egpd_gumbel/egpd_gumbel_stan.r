@@ -25,20 +25,6 @@ source("C:/Users/Andrea Ferrero/extremesCopula/code/models/copula_markov/sim_cop
 
 mod_sim <- simulate_copula_markov
 
-# Extremogram Calculation (Lag-dependent Tail dependence)
-calc_extremogram <- function(x, prob = 0.95, max_lag = 10) {
-  u <- quantile(x, prob)
-  n <- length(x)
-  ext_vec <- numeric(max_lag)
-  is_ext <- x > u
-  denom <- sum(is_ext)
-  for (h in 1:max_lag) {
-    num <- sum(is_ext[1:(n - h)] & is_ext[(h + 1):n])
-    ext_vec[h] <- num / denom
-  }
-  return(ext_vec)
-}
-
 # --- 3. GROUND TRUTH & DATA GENERATION ---
 
 set.seed(46)
