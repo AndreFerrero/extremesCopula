@@ -1,5 +1,5 @@
 # Optimized Markov Simulation Engine
-simulate_copula_markov <- function(n, copula, theta, margin, margin_param, burn = 100, bisec_it = 20) {
+simulate_copula_markov <- function(n, copula, copula_param, margin, margin_param, burn = 100, bisec_it = 20) {
   total_n <- n + burn
   U <- numeric(total_n)
   U[1] <- runif(1, 1e-5, 1 - 1e-5)
@@ -13,14 +13,14 @@ simulate_copula_markov <- function(n, copula, theta, margin, margin_param, burn 
     
     if (has_h_inv) {
       # FAST PATH: Use analytical inversion (e.g., Gaussian, Clayton)
-      U[t] <- copula$h_inv(w_target, v_prev, theta)
+      U[t] <- copula$h_inv(w_target, v_prev, copula_param)
     } else {
       # ROBUST PATH: Fallback to Bisection (e.g., Gumbel, Joe)
       low <- 1e-10
       high <- 1 - 1e-10
       for (i in 1:bisec_it) {
         mid <- (low + high) / 2
-        if (copula$h_dist(mid, v_prev, theta) < w_target) low <- mid else high <- mid
+        if (copula$h_dist(mid, v_prev, copula_param) < w_target) low <- mid else high <- mid
       }
       U[t] <- (low + high) / 2
     }
