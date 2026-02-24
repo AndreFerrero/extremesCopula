@@ -124,13 +124,29 @@ model {
     rho ~ normal(0, 0.5);
 
   if (prior_check == 0) {
-    target += egpd_lpdf(x[1] | mu, kappa, sigma, xi);
-    for (t in 2:T) {
-      real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
-      real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
-      target += egpd_lpdf(x[t] | mu, kappa, sigma, xi);
-      target += gaussian_copula_lpdf(u | v, rho);
-    }
+
+    // =========================
+    // Vectorized marginal
+    // =========================
+
+    target += egpd_lpdf_vec(x, mu, kappa, sigma, xi);
+
+    // =========================
+    // Vectorized PIT
+    // =========================
+
+    vector[T] log_u = egpd_lcdf_vec(x, mu, kappa, sigma, xi);
+    vector[T] u = exp(log_u);
+
+    // =========================
+    // Vectorized copula over pairs
+    // =========================
+
+    target += gaussian_copula_lpdf_vec(
+                  u[2:T],
+                  u[1:(T-1)],
+                  rho
+              );
   }
 }
 
