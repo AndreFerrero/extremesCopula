@@ -1,5 +1,5 @@
 functions {
-  // --- GPD Functions ---
+  // --- GPD Functions (Internal Engine) ---
   real gpd_lpdf(real x, real sigma, real xi) {
     real y = x / sigma;
     if (abs(xi) < 1e-5) return -y - log(sigma);
@@ -14,21 +14,35 @@ functions {
     return log1m_exp(-(1/xi) * log1p(xi * y));
   }
 
-  // --- EGPD Functions ---
-  real egpd_lcdf(real x, real kappa, real sigma, real xi) {
-    return gpd_lcdf(x | sigma, xi) * kappa;
+  // --- EGPD Functions (Now with mu integrated) ---
+  
+  // Log-CDF: F(x) = [G(x - mu)]^kappa
+  real egpd_lcdf(real x, real mu, real kappa, real sigma, real xi) {
+    return gpd_lcdf(x - mu | sigma, xi) * kappa;
   }
 
-  real egpd_lpdf(real x, real kappa, real sigma, real xi) {
-    real log_G = gpd_lcdf(x | sigma, xi);
-    real log_g = gpd_lpdf(x | sigma, xi);
+  // Log-PDF: f(x) = kappa * [G(x - mu)]^(kappa-1) * g(x - mu)
+  real egpd_lpdf(real x, real mu, real kappa, real sigma, real xi) {
+    real log_G = gpd_lcdf(x - mu | sigma, xi);
+    real log_g = gpd_lpdf(x - mu | sigma, xi);
     return log(kappa) + (kappa - 1) * log_G + log_g;
   }
 
-  real egpd_rng(real kappa, real sigma, real xi) {
-    real p_gpd = pow(uniform_rng(0, 1), 1.0/kappa);
-    if (abs(xi) < 1e-5) return -sigma * log1m(p_gpd);
-    return (sigma / xi) * (pow(1 - p_gpd, -xi) - 1);
+  // Quantile function (Inverse CDF)
+  real egpd_quantile(real u, real mu, real kappa, real sigma, real xi) {
+    real p_gpd = pow(u, 1.0/kappa);
+    real excess;
+    if (abs(xi) < 1e-5) {
+      excess = -sigma * log1m(p_gpd);
+    } else {
+      excess = (sigma / xi) * (pow(1.0 - p_gpd, -xi) - 1.0);
+    }
+    return mu + excess;
+  }
+
+  // Random Number Generator
+  real egpd_rng(real mu, real kappa, real sigma, real xi) {
+    return egpd_quantile(uniform_rng(0, 1), mu, kappa, sigma, xi);
   }
 
   // --- Joe Copula Functions (Hofert et al. 2012 Notation) ---
@@ -36,32 +50,24 @@ functions {
     if (u <= 1e-10 || u >= 1.0-1e-10 || v <= 1e-10 || v >= 1.0-1e-10) return -1e10;
     
     real alpha = 1.0 / theta;
-    // Survival terms used in Hofert's hJ function
     real u_term = pow(1.0 - u, theta);
     real v_term = pow(1.0 - v, theta);
     
-    // Joint survival component (hJ) and its complement (1 - hJ)
-    // hJ = (1 - (1-u)^theta) * (1 - (1-v)^theta)
-    // 1 - hJ = (1-u)^theta + (1-v)^theta - (1-u)^theta * (1-v)^theta
     real om_hJ = u_term + v_term - (u_term * v_term);
     real hJ = (1.0 - u_term) * (1.0 - v_term);
     
-    // Bivariate Joe Polynomial: P_2,alpha(x) = 1 + (1 - alpha) * x
-    // where x = hJ / (1 - hJ)
     real log_poly = log1p((1.0 - alpha) * (hJ / om_hJ));
     
-    // Final Log Density (Corollary 1, Part 5)
     return log(theta) + (theta - 1.0) * (log1m(u) + log1m(v)) 
            - (1.0 - alpha) * log(om_hJ) + log_poly;
   }
   
   real joe_hfunc(real u, real v, real theta) {
-    // Conditional CDF P(U <= u | V = v) derived from partial derivative
     real u_term = pow(1.0 - u, theta);
     real v_term = pow(1.0 - v, theta);
-    real term_joint = u_term + v_term - (u_term * v_term);
+    real K = u_term + v_term - (u_term * v_term);
     
-    return pow(term_joint, (1.0/theta) - 1.0) * pow(1.0 - v, theta - 1.0);
+    return pow(K, (1.0/theta) - 1.0) * pow(1.0 - v, theta - 1.0) * (1.0 - pow(1.0 - u, theta));
   }
 }
 
@@ -77,7 +83,7 @@ parameters {
   real<lower=0, upper=min(x)> mu;
   real<lower=0.01> kappa;
   real<lower=0.01> sigma;
-  real<lower=0> xi; 
+  real<lower=0, upper=0.5> xi; 
   real<lower=0> thetam1; 
 }
 
@@ -94,14 +100,17 @@ model {
   thetam1 ~ gamma(2, 1);
 
   if (prior_check == 0) {
-    target += egpd_lpdf(x[1] - mu | kappa, sigma, xi);
+    // First observation likelihood
+    target += egpd_lpdf(x[1] | mu, kappa, sigma, xi);
 
     for (t in 2:T) {
-      real u = exp(egpd_lcdf(x[t] - mu | kappa, sigma, xi));
-      real v = exp(egpd_lcdf(x[t-1] - mu | kappa, sigma, xi));
+      // Probability Integral Transform (PIT)
+      real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
+      real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
 
-      target += egpd_lpdf(x[t] - mu | kappa, sigma, xi);
-      target += joe_copula_lpdf(u| v, theta);
+      // Marginal Density + Copula Transition Density
+      target += egpd_lpdf(x[t] | mu, kappa, sigma, xi);
+      target += joe_copula_lpdf(u | v, theta);
     }
   }
 }
@@ -111,30 +120,32 @@ generated quantities {
   vector[T] log_lik;
 
   if (run_ppc == 1) {
-    x_rep[1] = mu + egpd_rng(kappa, sigma, xi);
+    // Generate initial state
+    x_rep[1] = egpd_rng(mu, kappa, sigma, xi);
+    
     for (t in 2:T) {
-      real v_prev = exp(egpd_lcdf(x_rep[t-1] - mu | kappa, sigma, xi));
+      real v_prev = exp(egpd_lcdf(x_rep[t-1] | mu, kappa, sigma, xi));
       real w = uniform_rng(0, 1);
-      real low = 1e-5; real high = 1 - 1e-5;
+      real low = 1e-5; 
+      real high = 1 - 1e-5;
       
-      // Bisection solver for Joe Copula
+      // Bisection solver for Joe Copula inversion (Rosenblatt)
       for (i in 1:I) {
         real mid = (low + high) / 2.0;
         if (joe_hfunc(mid, v_prev, theta) < w) low = mid; else high = mid;
       }
       real u_next = (low + high) / 2.0;
       
-      real g_inv_p = pow(u_next, 1.0/kappa);
-      real excess = (abs(xi) < 1e-5) ? -sigma * log1m(g_inv_p) : (sigma / xi) * (pow(1 - g_inv_p, -xi) - 1);
-      x_rep[t] = mu + excess;
+      // Map uniform back to physical scale
+      x_rep[t] = egpd_quantile(u_next, mu, kappa, sigma, xi);
     }
   }
 
-  // Pointwise log-likelihood for model selection
-  log_lik[1] = egpd_lpdf(x[1] - mu | kappa, sigma, xi);
+  // Pointwise log-likelihood for LOO-CV
+  log_lik[1] = egpd_lpdf(x[1] | mu, kappa, sigma, xi);
   for (t in 2:T) {
-    real u = exp(egpd_lcdf(x[t] - mu | kappa, sigma, xi));
-    real v = exp(egpd_lcdf(x[t-1] - mu | kappa, sigma, xi));
-    log_lik[t] = egpd_lpdf(x[t] - mu | kappa, sigma, xi) + joe_copula_lpdf(u| v, theta);
+    real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
+    real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
+    log_lik[t] = egpd_lpdf(x[t] | mu, kappa, sigma, xi) + joe_copula_lpdf(u | v, theta);
   }
 }
