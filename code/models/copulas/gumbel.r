@@ -3,11 +3,26 @@ source("code/packages.R")
 copula_gumbel <- list(
 
   name = "gumbel",
+  name_param = "theta",
 # --------------------------
   # Generator (phi) and inverse generator (psi)
   # --------------------------
   inv_psi = function(u, theta) (-log(u))^theta,
   psi = function(t, theta) exp(-t^(1/theta)),
+
+  # Joint CDF: C(u, v) = exp(-[(-log u)^theta + (-log v)^theta]^(1/theta))
+  cdf = function(u, v, theta) {
+    # Handles vector inputs for posterior draws
+    lu <- -log(u)
+    lv <- -log(v)
+    return(exp(-(lu^theta + lv^theta)^(1/theta)))
+  },
+  
+  # Specifically for the Tail Stability Plot where u=v
+  cdf_diag = function(u, theta) {
+    # Simplifies to u^(2^(1/theta))
+    return(u^(2^(1/theta)))
+  },
 
   # Gumbel h-function (Conditional CDF) for Markov transitions
 
