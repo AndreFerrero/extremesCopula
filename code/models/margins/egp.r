@@ -1,6 +1,7 @@
 margin_egp <- list(
   name = "egp",
-
+  name_param = c("mu", "kappa", "sigma", "xi"),
+  
   G_dist = function(u, param) u^param["kappa"],
   G_inv  = function(u, param) u^(1 / param["kappa"]),
   g_dist = function(u, param) {
@@ -8,23 +9,30 @@ margin_egp <- list(
   },
 
   cdf = function(x, param) {
-    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
+    x_std <- (x - param["mu"]) / param["sigma"]
+    u <- evd::pgpd(x_std, shape = param["xi"])
     margin_egp$G_dist(u, param)
   },
 
   lpdf = function(x, param) {
-    u <- evd::pgpd(x / param["sigma"], shape = param["xi"])
+
+    x_std <- (x - param["mu"]) / param["sigma"]
+
+    u <- evd::pgpd(x_std, shape = param["xi"])
 
     log(margin_egp$g_dist(u, param)) +
-      log(evd::dgpd(x / param["sigma"], shape = param["xi"])) -
+      log(evd::dgpd(x_std, shape = param["xi"])) -
       log(param["sigma"])
   },
 
   quantile = function(p, param) {
-    param["sigma"] * evd::qgpd(
+
+    q_std <- evd::qgpd(
       margin_egp$G_inv(p, param),
       shape = param["xi"]
     )
+
+    param["mu"] + param["sigma"] * q_std
   },
 
   sample = function(n, param) {
