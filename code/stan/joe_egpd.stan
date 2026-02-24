@@ -14,11 +14,25 @@ functions {
     return log1m_exp(-(1/xi) * log1p(xi * y));
   }
 
-  // --- EGPD Functions (Now with mu integrated) ---
-  
+  // --- EGPD Functions
   // Log-CDF: F(x) = [G(x - mu)]^kappa
   real egpd_lcdf(real x, real mu, real kappa, real sigma, real xi) {
     return gpd_lcdf(x - mu | sigma, xi) * kappa;
+  }
+
+  vector egpd_lcdf_vec(vector x,
+                       real mu,
+                       real kappa,
+                       real sigma,
+                       real xi) {
+
+    int N = num_elements(x);
+    vector[N] out;
+
+    for (n in 1:N)
+      out[n] = kappa * gpd_lcdf(x[n] - mu | sigma, xi);
+
+    return out;
   }
 
   // Log-PDF: f(x) = kappa * [G(x - mu)]^(kappa-1) * g(x - mu)
@@ -26,6 +40,23 @@ functions {
     real log_G = gpd_lcdf(x - mu | sigma, xi);
     real log_g = gpd_lpdf(x - mu | sigma, xi);
     return log(kappa) + (kappa - 1) * log_G + log_g;
+  }
+
+  real egpd_lpdf_vec(vector x,
+                  real mu,
+                  real kappa,
+                  real sigma,
+                  real xi) {
+    int N = num_elements(x);
+    vector[N] log_G;
+    vector[N] log_g;
+
+    for (n in 1:N) {
+      log_G[n] = gpd_lcdf(x[n] - mu | sigma, xi);
+      log_g[n] = gpd_lpdf(x[n] - mu | sigma, xi);
+    }
+
+    return sum(log(kappa) + (kappa - 1) .* log_G + log_g);
   }
 
   // Quantile function (Inverse CDF)
@@ -62,6 +93,28 @@ functions {
            - (1.0 - alpha) * log(om_hJ) + log_poly;
   }
   
+  real joe_copula_lpdf_vec(vector u, vector v, real theta) {
+  
+    int N = num_elements(u);
+    
+    real alpha = 1.0 / theta;
+    
+    // Vectorised components
+    vector[N] u_term = pow(1.0 - u, theta);
+    vector[N] v_term = pow(1.0 - v, theta);
+    
+    vector[N] om_hJ = u_term + v_term - (u_term .* v_term);
+    vector[N] hJ = (1.0 - u_term) .* (1.0 - v_term);
+    
+    vector[N] log_poly = log1p((1.0 - alpha) * (hJ ./ om_hJ));
+    
+    // Sum everything once
+    return N * log(theta)
+        + (theta - 1.0) * sum(log1m(u) + log1m(v))
+        - (1.0 - alpha) * sum(log(om_hJ))
+        + sum(log_poly);
+  }
+
   real joe_hfunc(real u, real v, real theta) {
     real u_term = pow(1.0 - u, theta);
     real v_term = pow(1.0 - v, theta);
@@ -100,18 +153,29 @@ model {
   thetam1 ~ gamma(2, 1);
 
   if (prior_check == 0) {
-    // First observation likelihood
-    target += egpd_lpdf(x[1] | mu, kappa, sigma, xi);
 
-    for (t in 2:T) {
-      // Probability Integral Transform (PIT)
-      real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
-      real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
+    // =========================
+    // Vectorized marginal
+    // =========================
 
-      // Marginal Density + Copula Transition Density
-      target += egpd_lpdf(x[t] | mu, kappa, sigma, xi);
-      target += joe_copula_lpdf(u | v, theta);
-    }
+    target += egpd_lpdf_vec(x, mu, kappa, sigma, xi);
+
+    // =========================
+    // Vectorized PIT
+    // =========================
+
+    vector[T] log_u = egpd_lcdf_vec(x, mu, kappa, sigma, xi);
+    vector[T] u = exp(log_u);
+
+    // =========================
+    // Vectorized copula over pairs
+    // =========================
+
+    target += joe_copula_lpdf_vec(
+                  u[2:T],
+                  u[1:(T-1)],
+                  theta
+              );
   }
 }
 

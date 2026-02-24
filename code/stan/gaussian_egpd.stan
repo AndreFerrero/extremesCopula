@@ -14,15 +14,49 @@ functions {
     return log1m_exp(-(1/xi) * log1p(xi * y));
   }
 
-  // --- EGPD Functions (mu integrated) ---
+  // --- EGPD Functions
+  // Log-CDF: F(x) = [G(x - mu)]^kappa
   real egpd_lcdf(real x, real mu, real kappa, real sigma, real xi) {
     return gpd_lcdf(x - mu | sigma, xi) * kappa;
   }
 
+  vector egpd_lcdf_vec(vector x,
+                       real mu,
+                       real kappa,
+                       real sigma,
+                       real xi) {
+
+    int N = num_elements(x);
+    vector[N] out;
+
+    for (n in 1:N)
+      out[n] = kappa * gpd_lcdf(x[n] - mu | sigma, xi);
+
+    return out;
+  }
+
+  // Log-PDF: f(x) = kappa * [G(x - mu)]^(kappa-1) * g(x - mu)
   real egpd_lpdf(real x, real mu, real kappa, real sigma, real xi) {
     real log_G = gpd_lcdf(x - mu | sigma, xi);
     real log_g = gpd_lpdf(x - mu | sigma, xi);
     return log(kappa) + (kappa - 1) * log_G + log_g;
+  }
+
+  real egpd_lpdf_vec(vector x,
+                  real mu,
+                  real kappa,
+                  real sigma,
+                  real xi) {
+    int N = num_elements(x);
+    vector[N] log_G;
+    vector[N] log_g;
+
+    for (n in 1:N) {
+      log_G[n] = gpd_lcdf(x[n] - mu | sigma, xi);
+      log_g[n] = gpd_lpdf(x[n] - mu | sigma, xi);
+    }
+
+    return sum(log(kappa) + (kappa - 1) .* log_G + log_g);
   }
 
   real egpd_quantile(real u, real mu, real kappa, real sigma, real xi) {
@@ -46,6 +80,24 @@ functions {
     real y = inv_Phi(v);
     real rho2 = square(rho);
     return -0.5 * log1m(rho2) - (rho2 * (square(x) + square(y)) - 2 * rho * x * y) / (2 * (1 - rho2));
+  }
+
+  real gaussian_copula_lpdf_vec(vector u, vector v, real rho) {
+  
+    int N = num_elements(u);
+    
+    vector[N] x = inv_Phi(u);
+    vector[N] y = inv_Phi(v);
+    
+    real rho2 = square(rho);
+    real log_det_term = -0.5 * log1m(rho2);
+    
+    vector[N] quad =
+        rho2 * (square(x) + square(y))
+        - 2.0 * rho .* (x .* y);
+    
+    return N * log_det_term
+        - sum(quad) / (2.0 * (1.0 - rho2));
   }
 }
 
