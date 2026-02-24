@@ -32,11 +32,8 @@ egpd_gumbel_single_gen <- function(n_obs) {
   true_kappa   <- rlnorm(1, 2, 1)
   true_sigma   <- rexp(1, 0.1)
   
-  # Focused xi sampling (Gumbel-Frechet domain, truncated at 0.5)
-  true_xi <- 1
-  while(true_xi > 0.5){
-    true_xi <- rgamma(1, 2, 10)
-  }
+  # Focused xi sampling (Gumbel-Frechet domain)
+  true_xi <- rgamma(1, 2, 10)
   
   true_thetam1 <- rgamma(1, 2, 1)
   true_theta   <- true_thetam1 + 1
@@ -46,7 +43,7 @@ egpd_gumbel_single_gen <- function(n_obs) {
   sim <- simulate_copula_markov(
     n = n_obs, 
     copula = copula_gumbel,
-    theta = true_theta, 
+    copula_param = true_theta, 
     margin = margin_egp, 
     margin_param = c(kappa = true_kappa, sigma = true_sigma, xi = true_xi)
   )
