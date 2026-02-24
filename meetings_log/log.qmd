@@ -108,3 +108,16 @@ toc-depth: 3
 
 ---
 
+## February 2026
+
+### Meeting 17/02/2026
+
+- compute P(X_t+2 > u | X_t > u) and empirical sim with gumbel copula
+- try joe copula linking theoreticl properties
+- HAC are possible extensions where (t, t-1) have their own copula, and there is the hierarchical part where you link (t, t-1) - (t-2) with another copula
+
+### Meeting 23/02/2026
+
+- Study inverse copula models
+- Is there an empirical pattern linking joe and gumbel parameters?
+

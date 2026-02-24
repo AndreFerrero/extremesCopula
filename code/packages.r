@@ -7,15 +7,18 @@
 
 required_pkgs <- c(
   "copula",
-  "stabledist",
-  "mvtnorm",
   "MASS",
   "coda",
   "parallel",
   "here",
-  "evd"
+  "evd",
+  "rstan",
+  "bayesplot",
+  "ggplot2"
 )
 
 invisible(lapply(required_pkgs, function(pkg) {
   suppressPackageStartupMessages(library(pkg, character.only = TRUE))
 }))
+
+rstan_options(auto_write = TRUE)
