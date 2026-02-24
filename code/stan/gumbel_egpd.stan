@@ -14,37 +14,61 @@ functions {
     return log1m_exp(-(1/xi) * log1p(xi * y));
   }
 
-  // --- EGPD Functions ---
-  real egpd_lcdf(real x, real kappa, real sigma, real xi) {
-    return gpd_lcdf(x | sigma, xi) * kappa;
+  // --- EGPD Functions (mu integrated) ---
+  real egpd_lcdf(real x, real mu, real kappa, real sigma, real xi) {
+    return gpd_lcdf(x - mu | sigma, xi) * kappa;
   }
 
-  real egpd_lpdf(real x, real kappa, real sigma, real xi) {
-    real log_G = gpd_lcdf(x | sigma, xi);
-    real log_g = gpd_lpdf(x | sigma, xi);
+  real egpd_lpdf(real x, real mu, real kappa, real sigma, real xi) {
+    real log_G = gpd_lcdf(x - mu | sigma, xi);
+    real log_g = gpd_lpdf(x - mu | sigma, xi);
     return log(kappa) + (kappa - 1) * log_G + log_g;
   }
 
-  real egpd_rng(real kappa, real sigma, real xi) {
-    real p_gpd = pow(uniform_rng(0, 1), 1.0/kappa);
-    if (abs(xi) < 1e-5) return -sigma * log1m(p_gpd);
-    return (sigma / xi) * (pow(1 - p_gpd, -xi) - 1);
+  real egpd_quantile(real u, real mu, real kappa, real sigma, real xi) {
+    real p_gpd = pow(u, 1.0/kappa);
+    real excess;
+    if (abs(xi) < 1e-5) {
+      excess = -sigma * log1m(p_gpd);
+    } else {
+      excess = (sigma / xi) * (pow(1.0 - p_gpd, -xi) - 1.0);
+    }
+    return mu + excess;
+  }
+
+  real egpd_rng(real mu, real kappa, real sigma, real xi) {
+    return egpd_quantile(uniform_rng(0, 1), mu, kappa, sigma, xi);
   }
 
   // --- Gumbel Copula Functions ---
+  real gumbel_copula_lcdf(real u, real v, real theta) {
+    if (u <= 1e-10 || u >= 1.0-1e-10 || v <= 1e-10 || v >= 1.0-1e-10) return -1e10;
+
+    real ln_u = -log(u);
+    real ln_v = -log(v);
+
+    real t = pow(ln_u, theta) + pow(ln_v, theta);
+
+    real lcdf = - pow(t, 1/theta);
+
+    return lcdf;
+  }
+
   real gumbel_copula_lpdf(real u, real v, real theta) {
     if (u <= 1e-10 || u >= 1.0-1e-10 || v <= 1e-10 || v >= 1.0-1e-10) return -1e10;
     real alpha = 1.0 / theta;
-    real w_u = -log(u); real w_v = -log(v);
-    real t = pow(w_u, theta) + pow(w_v, theta);
+    real ln_u = -log(u);
+    real ln_v = -log(v);
+    real t = pow(ln_u, theta) + pow(ln_v, theta);
     real r = pow(t, alpha);
-    return -r + (theta - 1) * (log(w_u) + log(w_v)) + (alpha - 2) * log(t) + log(r + theta - 1) - (log(u) + log(v));
+    return -r + (theta - 1) * (log(ln_u) + log(ln_v)) + (alpha - 2) * log(t) + log(r + theta - 1) - (log(u) + log(v));
   }
   
   real gumbel_hfunc(real u, real v, real theta) {
-    real ln_u = -log(u); real ln_v = -log(v);
-    real term = pow(ln_u, theta) + pow(ln_v, theta);
-    return exp(-pow(term, 1.0/theta)) * pow(ln_v, theta - 1.0) * pow(term, 1.0/theta - 1.0) / v;
+    real ln_u = -log(u);
+    real ln_v = -log(v);
+    real t = pow(ln_u, theta) + pow(ln_v, theta);
+    return exp(-pow(t, 1.0/theta)) * pow(ln_v, theta - 1.0) * pow(t, 1.0/theta - 1.0) / v;
   }
 }
 
@@ -77,14 +101,17 @@ model {
   thetam1 ~ gamma(2, 1);
 
   if (prior_check == 0) {
-    target += egpd_lpdf(x[1] - mu | kappa, sigma, xi);
+    // First observation likelihood
+    target += egpd_lpdf(x[1] | mu, kappa, sigma, xi);
 
     for (t in 2:T) {
-      real u = exp(egpd_lcdf(x[t] - mu | kappa, sigma, xi));
-      real v = exp(egpd_lcdf(x[t-1] - mu | kappa, sigma, xi));
+      // Probability Integral Transform (PIT)
+      real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
+      real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
 
-      target += egpd_lpdf(x[t] - mu | kappa, sigma, xi);
-      target += gumbel_copula_lpdf(u| v, theta);
+      // Marginal Density + Copula Transition Density
+      target += egpd_lpdf(x[t] | mu, kappa, sigma, xi);
+      target += gumbel_copula_lpdf(u | v, theta);
     }
   }
 }
@@ -94,27 +121,32 @@ generated quantities {
   vector[T] log_lik; // Added for LOO-CV model comparison
 
   if (run_ppc == 1) {
-    x_rep[1] = mu + egpd_rng(kappa, sigma, xi);
+    // Generate initial state
+    x_rep[1] = egpd_rng(mu, kappa, sigma, xi);
+    
     for (t in 2:T) {
-      real v_prev = exp(egpd_lcdf(x_rep[t-1] - mu | kappa, sigma, xi));
+      real v_prev = exp(egpd_lcdf(x_rep[t-1] | mu, kappa, sigma, xi));
       real w = uniform_rng(0, 1);
-      real low = 1e-5; real high = 1 - 1e-5;
+      real low = 1e-5; 
+      real high = 1 - 1e-5;
+      
+      // Bisection solver for Copula inversion (Rosenblatt)
       for (i in 1:I) {
         real mid = (low + high) / 2.0;
         if (gumbel_hfunc(mid, v_prev, theta) < w) low = mid; else high = mid;
       }
       real u_next = (low + high) / 2.0;
-      real g_inv_p = pow(u_next, 1.0/kappa);
-      real excess = (abs(xi) < 1e-5) ? -sigma * log1m(g_inv_p) : (sigma / xi) * (pow(1 - g_inv_p, -xi) - 1);
-      x_rep[t] = mu + excess;
+      
+      // Map uniform back to physical scale
+      x_rep[t] = egpd_quantile(u_next, mu, kappa, sigma, xi);
     }
   }
 
   // Calculate pointwise log-likelihood for model selection (LOO-CV)
-  log_lik[1] = egpd_lpdf(x[1] - mu | kappa, sigma, xi);
+  log_lik[1] = egpd_lpdf(x[1] | mu, kappa, sigma, xi);
   for (t in 2:T) {
-    real u = exp(egpd_lcdf(x[t] - mu | kappa, sigma, xi));
-    real v = exp(egpd_lcdf(x[t-1] - mu | kappa, sigma, xi));
-    log_lik[t] = egpd_lpdf(x[t] - mu | kappa, sigma, xi) + gumbel_copula_lpdf(u| v, theta);
+    real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
+    real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
+    log_lik[t] = egpd_lpdf(x[t] | mu, kappa, sigma, xi) + gumbel_copula_lpdf(u | v, theta);
   }
 }
