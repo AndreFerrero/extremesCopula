@@ -22,13 +22,17 @@ lambda_z_empirical <- function(x, prob) {
   num / den
 }
 
+lambda_85 <- function(x) lambda_z_empirical(x, 0.85)
+lambda_90 <- function(x) lambda_z_empirical(x, 0.90)
+lambda_95 <- function(x) lambda_z_empirical(x, 0.95)
+
 ppc_lambda <- function(x_obs, x_ppc, prob) {
   # Arguments:
   # x_obs: observed series
-  # x_ppc: T x N_draws matrix, e.g., fit$ppc
+  # x_ppc: N_draws x T matrix, e.g., fit$ppc
   # z_level: threshold to compute lambda(z)
 
-  n_draws <- ncol(x_ppc)
+  n_draws <- nrow(x_ppc)
   lambda_ppc <- numeric(n_draws)
 
   for (i in seq_len(n_draws)) {

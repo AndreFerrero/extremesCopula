@@ -1,16 +1,8 @@
 make_copula_markov_model <- function(
   margin,
   copula,
-  stan_file
+  stan_mod
 ) {
-  # ----------------------------------------
-  # Compile (auto-cached by rstan)
-  # ----------------------------------------
-
-  message("Compiling (or reusing cached) Stan model...")
-
-  stan_model_obj <- rstan::stan_model(stan_file)
-
   # ----------------------------------------
   # Build object
   # ----------------------------------------
@@ -18,8 +10,6 @@ make_copula_markov_model <- function(
   list(
     margin = margin,
     copula = copula,
-    stan_model = stan_model_obj,
-    stan_file = stan_file,
 
     # -----------------------
     # SIMULATION
@@ -30,13 +20,15 @@ make_copula_markov_model <- function(
                         seed = NULL) {
       if (!is.null(seed)) set.seed(seed)
 
-      simulate_copula_markov(
+      out <- simulate_copula_markov(
         n = n,
         copula = copula,
         copula_param = copula_param,
         margin = margin,
         margin_param = margin_param
       )
+
+      return(out)
     },
 
     # -----------------------
@@ -47,9 +39,9 @@ make_copula_markov_model <- function(
                    chains = 4,
                    seed = 42,
                    prior_check = 0,
-                   run_ppc = 1,
-                   I = 25,
-                   compute_loo = TRUE,
+                   run_ppc = 0,
+                   I = NULL,
+                   ei_mcmc = NULL,
                    adapt_delta = NULL) {
       options(mc.cores = chains)
       # control list
@@ -63,12 +55,14 @@ make_copula_markov_model <- function(
         run_ppc = run_ppc
       )
 
+      # Some models don't need I
       if (!is.null(I)) stan_data$I <- I
-
+      if(!is.null(ei_mcmc)) stan_data$ei_mcmc <- ei_mcmc
+      
       message("Sampling...")
 
       fit_obj <- rstan::sampling(
-        object = stan_model_obj,
+        object = stan_mod,
         data = stan_data,
         iter = iter,
         chains = chains,
@@ -80,7 +74,11 @@ make_copula_markov_model <- function(
       posterior_list <- rstan::extract(fit_obj, permuted = TRUE)
 
       # Remove generated quantities we don't want
-      exclude <- c("x_rep", "log_lik", "lp__")
+      exclude <- ifelse(run_ppc == 0,
+        NULL,
+        c("x_rep", "lp__")
+      )
+
       param_names <- setdiff(names(posterior_list), exclude)
 
       # Convert to dataframe
@@ -101,12 +99,6 @@ make_copula_markov_model <- function(
       # PPC
       if (run_ppc == 1) {
         out$ppc <- rstan::extract(fit_obj, "x_rep")$x_rep
-      }
-
-      # LOO
-      if (compute_loo) {
-        log_lik <- rstan::extract(fit_obj, "log_lik")$log_lik
-        out$loo <- loo::loo(log_lik)
       }
 
       return(out)

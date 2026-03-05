@@ -105,7 +105,7 @@ data {
   int<lower=2> T;
   vector<lower=0>[T] x;
   int<lower=0, upper=1> prior_check;
-  int<lower=0, upper=1> run_ppc; 
+  int<lower=0, upper=1> run_ppc;
 }
 
 parameters {
@@ -152,7 +152,6 @@ model {
 
 generated quantities {
   vector[T] x_rep;
-  vector[T] log_lik;
 
   if (run_ppc == 1) {
     x_rep[1] = egpd_rng(mu, kappa, sigma, xi);
@@ -163,12 +162,5 @@ generated quantities {
       real u_next = Phi(rho * inv_Phi(v_prev) + sqrt(1 - square(rho)) * inv_Phi(w));
       x_rep[t] = egpd_quantile(u_next, mu, kappa, sigma, xi);
     }
-  }
-
-  log_lik[1] = egpd_lpdf(x[1] | mu, kappa, sigma, xi);
-  for (t in 2:T) {
-    real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
-    real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
-    log_lik[t] = egpd_lpdf(x[t] | mu, kappa, sigma, xi) + gaussian_copula_lpdf(u | v, rho);
   }
 }

@@ -129,7 +129,7 @@ data {
   vector<lower=0>[T] x;
   int<lower=0, upper=1> prior_check; 
   int<lower=0, upper=1> run_ppc; 
-  int<lower=16> I; 
+  int<lower=16> I;
 }
 
 parameters {
@@ -181,7 +181,6 @@ model {
 
 generated quantities {
   vector[T] x_rep;
-  vector[T] log_lik;
 
   if (run_ppc == 1) {
     // Generate initial state
@@ -203,13 +202,5 @@ generated quantities {
       // Map uniform back to physical scale
       x_rep[t] = egpd_quantile(u_next, mu, kappa, sigma, xi);
     }
-  }
-
-  // Pointwise log-likelihood for LOO-CV
-  log_lik[1] = egpd_lpdf(x[1] | mu, kappa, sigma, xi);
-  for (t in 2:T) {
-    real u = exp(egpd_lcdf(x[t] | mu, kappa, sigma, xi));
-    real v = exp(egpd_lcdf(x[t-1] | mu, kappa, sigma, xi));
-    log_lik[t] = egpd_lpdf(x[t] | mu, kappa, sigma, xi) + joe_copula_lpdf(u | v, theta);
   }
 }
