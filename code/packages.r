@@ -14,11 +14,11 @@ required_pkgs <- c(
   "evd",
   "rstan",
   "bayesplot",
-  "ggplot2"
+  "ggplot2",
+  "posterior"
 )
 
 invisible(lapply(required_pkgs, function(pkg) {
   suppressPackageStartupMessages(library(pkg, character.only = TRUE))
 }))
 
-rstan_options(auto_write = TRUE)
