@@ -1,0 +1,168 @@
+---
+title: "Bayesian Modelling of Dependent Extremes with Copulas"
+author: "Andrea Ferrero"
+lang : "en"
+number_sections: true
+encoding: "UTF-8"
+bibliography: "bib/biblio.bib"
+biblio-style: "plainnat"
+output:
+  bookdown::pdf_document2:
+    citation_package: natbib
+    keep_tex: true
+    toc: true
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[T1]{fontenc}
+  - \usepackage{setspace}
+  - \onehalfspacing
+---
+
+```{r setup, cache = FALSE, include = FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
+knitr::opts_knit$set(root.dir = here::here())
+options(knitr.kable.NA = "")
+```
+
+```{r environement}
+source("code/packages.R")
+source("code/handy_funs.R")
+source("code/models/margins/egp.r")
+source("code/models/copulas/gumbel.r")
+source("code/models/copulas/joe.r")
+source("code/models/copulas/gaussian.r")
+source("code/models/copula_markov/copula_markov_model.R")
+```
+
+```{r stan-models}
+
+rstan_options(auto_write = TRUE)
+gaussian_stan <- rstan::stan_model("code/stan/gaussian_egpd.stan")
+gumbel_stan <- rstan::stan_model("code/stan/gumbel_egpd.stan")
+joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
+```
+
+```{r models-constructors}
+gumbel_model <- make_copula_markov_model(
+  margin = margin_egp,
+  copula = copula_gumbel,
+  stan_mod = gumbel_stan
+)
+
+gaussian_model <- make_copula_markov_model(
+  margin = margin_egp,
+  copula = copula_gaussian,
+  stan_mod = gaussian_stan
+)
+
+joe_model <- make_copula_markov_model(
+  margin = margin_egp,
+  copula = copula_joe,
+  stan_mod = joe_stan
+)
+```
+
+# Introduction
+
+In the context of extreme value theory, of major interest is the correct modelling of the dependence structure between extreme events.
+
+Assuming a stationary sequence of random variables $(X_n)_{n \in \mathbb{Z}}$, following a common distribution function $F$ and satisfying the $D(u_n)$ condition (see \cite{coles_introduction_2001}), the limit distribution of the maxima $M_n = \mathrm{max}(X_1, \dots, X_n)$ under suitable normalisation is:
+
+\begin{equation}
+P\left(\frac{M_n - b_n}{a_n} \leq x \right) \xrightarrow{n \to \infty} H_{\xi}^\theta (x),
+\end{equation}
+where $H_\xi$ is the Generalised Extreme Value (GEV) limit distribution of the maxima of $X^*_n \overset{\text{iid}}{\sim} F$.
+
+The normalising sequences are usually absorbed into location and scale parameters, leading to a limit distribution $H_{\mu, \sigma, \xi} (x) = H_\xi (\frac{x - \mu}{\sigma})$.
+
+The exponent $\theta \in (0,1)$ is the extremal index, which captures information on the strength of dependence of extremes. When the sequence is independent, the extremal index is 1. However, there exist dependent sequences for which $\theta = 1$. A typical interpretation of the extremal index is:
+
+\begin{equation}
+E[\mathrm{cluster \, size}] \approx \frac{1}{\theta} .
+\end{equation} This stems from the consideration that dependent extremes have the tendency of clustering together.
+
+The way this limit result is used is by considering block maxima and fitting the GEV distribution on this sequence. Estimators for the extremal index have also been proposed to properly account for the dependence when inferring extremal quantities, like return levels. However, it could be argued that finding blocks might not be immediate and retaining only maxima discards a lot of information.
+
+In contrast to the block maxima, another classical approach under independence is to consider exceedances above a threshold $u$ and exploit their asymptotic convergence towards a generalised pareto distribution (GPD):
+
+\begin{equation}
+P(X - u > x \mid X > u) \xrightarrow{u \to x_F} G_{\sigma, \xi} (x),
+\end{equation}
+where $x_F$ is the right endpoint of the distribution of $X$. 
+
+This allows to retain more information by using all the exceedances. However, it requires selecting a suitable threshold, leading to similar considerations when it comes to the identification of blocks.
+
+To deal with dependent exceedances, a common practice is the Peaks Over Threshold (POT) method, which requires finding the clusters of extremes in the data and retain only the cluster maxima. At that point, the GPD is fitted to the maxima assumed to be independent between clusters. The problem of this method is the discard of many observations and the related inefficiency, similarly to the block maxima approach. See \cite{smith_markov_1997}.
+
+Making stronger dependence assumptions allows for better modelling of the dependence structure. One typical example is to assume the sequence is a Markov chain. Results on extremal properties of Markov Chains can be found in \citep{obrien_extreme_1987, smith_extremal_1992, perfekt_extremal_1994, yun_extremal_1998}. The idea is to model the distribution of pairs of consecutive random variables $(X_t, X_{t+1})$ while making assumptions on the common marginal distribution. Usually, for this type of models the approach still requires the definition of a threshold and this results in a censored likelihood.
+
+# Copula Markov Models
+
+## EGPD margin
+
+```{r bisection-results}
+bisection_res <- readRDS(here::here("sims/copula_markov/res/bisection_copula_invers.rds"))
+mc_results <- bisection_res$mc_results
+mb         <- bisection_res$benchmark
+```
+
+```{r mc-tau-table, results = 'asis'}
+mc_table <- do.call(rbind, mc_results)
+
+# Kendall's tau table
+mc_table[, c("Theta", "Theo_Tau", "Mean_Tau", "SD_Tau", "Tau_Bias")] |>
+  knitr::kable(
+    format    = "latex",
+    booktabs  = TRUE,
+    row.names = FALSE,
+    linesep   = "",
+    caption   = "Monte Carlo validation: Kendall's $\\tau$ for the Gumbel copula."
+  )
+```
+
+```{r mc-lambda-table, results = 'asis'}
+# Tail dependence table
+mc_table[, c("Theta", "Theo_Lambda", "Mean_Lambda", "SD_Lambda", "Lambda_Bias")] |>
+  knitr::kable(
+    format    = "latex",
+    booktabs  = TRUE,
+    row.names = FALSE,
+    linesep   = "",
+    caption   = "Monte Carlo validation: tail dependence $\\lambda_U$ for the Gumbel copula."
+  )
+```
+
+```{r benchmark-table, results = 'asis'}
+summary(mb) |>
+  knitr::kable(
+    format   = "latex",
+    booktabs = TRUE,
+    digits   = 3,
+    caption  = "Bisection sampler vs. \\texttt{copula} package benchmark (1000 iterations)."
+  )
+```
+
+```{r plot-u-w}
+n <- 3000
+copula_param <- 2
+gumbel_sim <- gumbel_model$simulate(
+  n = n,
+  copula_param = copula_param,
+  margin_param = c(mu = 0, kappa = 1.5, sigma = 2, xi = 0.2),
+  seed = 46
+)
+
+u_sim <- gumbel_sim$u
+w_t <- copula_gumbel$h_dist(u_sim[-n], u_sim[-1], copula_param)
+
+par(mfrow = c(1, 2))
+lag_plot(u_sim)
+hist(w_t, breaks = 30, main = "Histogram of w_t")
+par(mfrow = c(1, 1))
+```

@@ -6,12 +6,12 @@ source("code/models/margins/egp.r")
 source("code/models/copulas/gumbel.r")
 source("code/models/copulas/joe.r")
 source("code/models/copulas/gaussian.r")
-source("code/models/copula_markov/sim_copula_markov.R")
 source("code/models/copula_markov/copula_markov_model.R")
 
 rstan_options(auto_write = TRUE)
-
+gaussian_stan <- rstan::stan_model("code/stan/gaussian_egpd.stan")
 gumbel_stan <- rstan::stan_model("code/stan/gumbel_egpd.stan")
+joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
 
 gumbel_model <- make_copula_markov_model(
   margin = margin_egp,
@@ -19,15 +19,11 @@ gumbel_model <- make_copula_markov_model(
   stan_mod = gumbel_stan
 )
 
-gaussian_stan <- rstan::stan_model("code/stan/gaussian_egpd.stan")
-
 gaussian_model <- make_copula_markov_model(
   margin = margin_egp,
   copula = copula_gaussian,
   stan_mod = gaussian_stan
 )
-
-joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
 
 joe_model <- make_copula_markov_model(
   margin = margin_egp,
@@ -35,9 +31,9 @@ joe_model <- make_copula_markov_model(
   stan_mod = joe_stan
 )
 
-# 2. Simulate
+# ---- Simulate ----
 gumbel_sim <- gumbel_model$simulate(
-  n = 5000,
+  n = 1000,
   copula_param = 2,
   margin_param = c(mu = 0, kappa = 1.5, sigma = 2, xi = 0.2),
   seed = 46
@@ -57,21 +53,29 @@ joe_sim <- joe_model$simulate(
   seed = 46
 )
 
-# Independence test Gumbel
+# Independent Gumbel
 
 gumbel_indep_sim <- gumbel_model$simulate(
   n = 5000,
   copula_param = 1,
-  margin_param = c(mu = 0, kappa = 1.5, sigma = 2, xi = 0.2),
+  margin_param = c(mu = 0, kappa = 1.5, sigma = 2, xi = 0.3),
   seed = 46
 )
 
 indep_gumbel_fit <- gumbel_model$fit(gumbel_indep_sim$x)
 
-# Gumbel data fit
+# ---- Model fit ----
+### Gumbel data fit
 gumbel_fit <- gumbel_model$fit(gumbel_sim$x,
   I = 32,
   run_ppc = 1,
+  ei_mcmc = 5000
+)
+
+gumbeljoe_fit <- joe_model$fit(gumbel_sim$x,
+  run_ppc = 1,
+  iter = 1000,
+  I = 25,
   ei_mcmc = 5000
 )
 
@@ -92,7 +96,16 @@ gjoe_fit <- joe_model$fit(gaussian_sim$x,
 
 ### Joe data fit
 
-joe_fit <- joe_model$fit(joe_sim$x, I = 25)
-jgumbel_fit <- gumbel_model$fit(joe_sim$x, I = 25)
+joe_fit <- joe_model$fit(joe_sim$x,
+  run_ppc = 1,
+  iter = 1000,
+  I = 25,
+  ei_mcmc = 5000
+)
 
-
+jgumbel_fit <- gumbel_model$fit(joe_sim$x,
+  iter = 1000,
+  run_ppc = 1,
+  I = 25,
+  ei_mcmc = 5000
+)

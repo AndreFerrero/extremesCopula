@@ -1,9 +1,9 @@
-
+source("code/analysis/extremal_index_ppc.R")
 source("code/packages.r")
 library(exdex)
 
 
-spm(gumbel_sim$x, 1000)
+spm(gumbel_sim$x, 30)
 spm(gaussian_sim$x, 1000)
 
 ?choose_b
@@ -12,7 +12,7 @@ b_res <- choose_b(gumbel_sim$x, b_vals)
 plot(b_res, ylim = c(0, 1))
 
 # PPC on empirical extremal index
-b_vals <- seq(10, 200, 10)
+b_vals <- seq(10, 70, 5)
 b_choice <- exdex::choose_b(gumbel_sim$x, b_vals)
 plot(b_choice)
 
@@ -23,6 +23,8 @@ plot(conf_theta_gumbel)
 (gumbel_theta_ppc_20 <- ppc_stat(gumbel_sim$x, gumbel_fit$ppc,  stat = "stat_theta_b20"))
 (gumbel_theta_ppc_50 <- ppc_stat(gumbel_sim$x, gumbel_fit$ppc,  stat = "stat_theta_b50"))
 (gumbel_theta_ppc_100 <- ppc_stat(gumbel_sim$x, gumbel_fit$ppc,  stat = "stat_theta_b100"))
+
+# Theoretical extremal index for Gumbel copula
 
 get_theoretical_theta_gumbel <- function(copula_param, n_sim = 5000) {
   
@@ -168,6 +170,21 @@ res <- monitor_individual_deaths(12, l = 5000)
 hist(res$durations, main="Steps until cluster memory vanishes", xlab="Steps (Days)", breaks = 30)
 
 # Posterior distribution of Extremal Index using tail chain theory
-hist(gumbel_fit$draws[, "extremal_index"], breaks = 30)
-median(gumbel_fit$draws[,"extremal_index"])
-mean(gumbel_fit$draws[,"extremal_index"])
+png("joedata_joe-gumbel_post_ei_n1000_iter1000.png", width = 800, height = 600)
+
+par(mfrow = c(1, 2))
+hist(jgumbel_fit$draws[, "extremal_index"], breaks = 30)
+hist(joe_fit$draws[, "extremal_index"], breaks = 30)
+par(mfrow = c(1, 1))
+
+dev.off()
+
+median(jgumbel_fit$draws[,"extremal_index"])
+mean(jgumbel_fit$draws[,"extremal_index"])
+sd(jgumbel_fit$draws[,"extremal_index"])
+quantile(jgumbel_fit$draws[,"extremal_index"], c(0.025, 0.975))
+
+median(joe_fit$draws[,"extremal_index"])
+mean(joe_fit$draws[,"extremal_index"])
+sd(joe_fit$draws[,"extremal_index"])
+quantile(joe_fit$draws[,"extremal_index"], c(0.025, 0.975))

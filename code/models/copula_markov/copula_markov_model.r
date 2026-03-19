@@ -1,3 +1,53 @@
+sample_bisection <- function(w, v_prev, fun, copula_param, iterations) {
+  low <- 1e-10
+  high <- 1 - 1e-10
+
+  for (i in 1:iterations) {
+    mid <- (low + high) / 2
+    if (fun(mid, v_prev, copula_param) < w) {
+      low <- mid
+    } else {
+      high <- mid
+    }
+  }
+  return((low + high) / 2)
+}
+
+simulate_copula_markov <- function(
+  n,
+  copula, copula_param,
+  margin, margin_param,
+  bisec_it = 20
+) {
+  u <- numeric(n)
+  u[1] <- runif(1, 1e-5, 1 - 1e-5)
+
+  # Check if the copula object has a pre-defined analytical inverse
+  has_h_inv <- !is.null(copula$h_inv)
+
+  for (t in 2:n) {
+    v_prev <- u[t - 1]
+    w_target <- runif(1)
+
+    if (has_h_inv) {
+      # Analytical Inverse
+      u[t] <- copula$h_inv(w_target, v_prev, copula_param)
+    } else {
+      # Bisection Method
+      u[t] <- sample_bisection(
+        w_target, v_prev,
+        copula$h_dist, copula_param,
+        bisec_it
+      )
+    }
+  }
+
+  x <- margin$quantile(u, margin_param)
+
+  return(list(x = x, u = u, method_used = ifelse(has_h_inv, "analytical", "bisection")))
+}
+
+
 make_copula_markov_model <- function(
   margin,
   copula,
@@ -57,8 +107,8 @@ make_copula_markov_model <- function(
 
       # Some models don't need I
       if (!is.null(I)) stan_data$I <- I
-      if(!is.null(ei_mcmc)) stan_data$ei_mcmc <- ei_mcmc
-      
+      if (!is.null(ei_mcmc)) stan_data$ei_mcmc <- ei_mcmc
+
       message("Sampling...")
 
       fit_obj <- rstan::sampling(

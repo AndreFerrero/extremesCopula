@@ -15,7 +15,9 @@ required_pkgs <- c(
   "rstan",
   "bayesplot",
   "ggplot2",
-  "posterior"
+  "posterior",
+  "microbenchmark",
+  "kableExtra"
 )
 
 invisible(lapply(required_pkgs, function(pkg) {
