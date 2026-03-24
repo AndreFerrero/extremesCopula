@@ -160,7 +160,6 @@ data {
   int<lower=0, upper=1> prior_check;
   int<lower=0, upper=1> run_ppc;
   int<lower=16> I;
-  int<lower=1000> ei_mcmc;
 }
 parameters {
   real<lower=0, upper=min(x)> mu;
@@ -203,10 +202,6 @@ model {
 }
 generated quantities {
   vector[T] x_rep;
-  
-  real extremal_index;
-
-  extremal_index = gumbel_extremal_index_rng(theta, ei_mcmc, 500);
 
   if (run_ppc == 1) {
     // Generate initial state
