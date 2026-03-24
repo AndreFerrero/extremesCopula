@@ -165,7 +165,7 @@ parameters {
   real<lower=0, upper=min(x)> mu;
   real<lower=0> kappa;
   real<lower=0> sigma;
-  real<lower=0> xi;
+  real xi;
   real<lower=0> thetam1;
 }
 transformed parameters {
@@ -176,7 +176,7 @@ model {
   mu ~ normal(5, 2.5);
   kappa ~ lognormal(2, 1);
   sigma ~ exponential(0.1);
-  xi ~ gamma(2, 10);
+  xi ~ normal(0, 0.3);
   thetam1 ~ gamma(2, 1);
   
   if (prior_check == 0) {
