@@ -190,13 +190,13 @@ data {
   int<lower=0, upper=1> prior_check;
   int<lower=0, upper=1> run_ppc;
   int<lower=16> I;
-  int<lower=1000> ei_mcmc;
+  int<lower=0, upper=1> run_ei_mcmc;
 }
 
 parameters {
   real<lower=0, upper=min(x)> mu;
-  real<lower=0.01> kappa;
-  real<lower=0.01> sigma;
+  real<lower=0> kappa;
+  real<lower=0> sigma;
   real<lower=0> xi;
   real<lower=0> thetam1;
 }
@@ -247,7 +247,9 @@ generated quantities {
   vector[T] x_rep;
   real extremal_index;
 
-  extremal_index = gumbel_extremal_index_rng(theta, ei_mcmc, 500);
+  if (run_ei_mcmc == 1){
+    extremal_index = gumbel_extremal_index_rng(theta, 1000, 500);
+  }
 
   if (run_ppc == 1) {
     // Generate initial state
