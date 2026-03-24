@@ -10,14 +10,23 @@ source("code/models/copula_markov/copula_markov_model.R")
 
 rstan_options(auto_write = TRUE)
 # gaussian_stan <- rstan::stan_model("code/stan/gaussian_egpd.stan")
+
 gumbel_stan <- rstan::stan_model("code/stan/gumbel_egpd.stan")
-# joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
+# mxi_gumbel_stan <- rstan::stan_model("code/stan/mxi_gumbel_egpd.stan")
+
+joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
 
 gumbel_model <- make_copula_markov_model(
   margin = margin_egp,
   copula = copula_gumbel,
   stan_mod = gumbel_stan
 )
+
+# mxi_gumbel_model <- make_copula_markov_model(
+#   margin = margin_egp,
+#   copula = copula_gumbel,
+#   stan_mod = mxi_gumbel_stan
+# )
 
 # gaussian_model <- make_copula_markov_model(
 #   margin = margin_egp,
