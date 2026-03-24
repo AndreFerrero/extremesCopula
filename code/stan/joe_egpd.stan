@@ -164,8 +164,8 @@ data {
 }
 parameters {
   real<lower=0, upper=min(x)> mu;
-  real<lower=0.01> kappa;
-  real<lower=0.01> sigma;
+  real<lower=0> kappa;
+  real<lower=0> sigma;
   real<lower=0> xi;
   real<lower=0> thetam1;
 }

@@ -110,10 +110,10 @@ data {
 
 parameters {
   real<lower=0, upper=min(x)> mu;
-  real<lower=0.01> kappa;
-  real<lower=0.01> sigma;
+  real<lower=0> kappa;
+  real<lower=0> sigma;
   real<lower=0> xi; 
-  real<lower=-0.99, upper=0.99> rho; 
+  real<lower=-1, upper=1> rho; 
 }
 
 model {
