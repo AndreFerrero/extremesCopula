@@ -90,9 +90,11 @@ make_copula_markov_model <- function(
                    seed = 42,
                    prior_check = 0,
                    run_ppc = 0,
+                   run_ei_mcmc = NULL,
                    I = NULL,
-                   ei_mcmc = NULL,
-                   adapt_delta = NULL) {
+                   init_par = NULL,
+                   adapt_delta = NULL,
+                   extract_df = FALSE) {
       options(mc.cores = chains)
       # control list
       control_list <- if (!is.null(adapt_delta)) list(adapt_delta = adapt_delta) else list()
@@ -107,7 +109,12 @@ make_copula_markov_model <- function(
 
       # Some models don't need I
       if (!is.null(I)) stan_data$I <- I
-      if (!is.null(ei_mcmc)) stan_data$ei_mcmc <- ei_mcmc
+
+      if (is.null(init_par)) {
+        init_par <- "random"
+      }
+
+      if (!is.null(run_ei_mcmc)) stan_data$run_ei_mcmc <- run_ei_mcmc
 
       message("Sampling...")
 
@@ -117,34 +124,36 @@ make_copula_markov_model <- function(
         iter = iter,
         chains = chains,
         seed = seed,
+        init = init_par,
         control = control_list
       )
 
-      # Extract all posterior draws
-      posterior_list <- rstan::extract(fit_obj, permuted = TRUE)
-
-      # Remove generated quantities we don't want
-      exclude <- ifelse(run_ppc == 0,
-        NULL,
-        c("x_rep", "lp__")
-      )
-
-      param_names <- setdiff(names(posterior_list), exclude)
-
-      # Convert to dataframe
-      draws_df <- as.data.frame(posterior_list[param_names])
-
-      margin_draws <- draws_df[, margin$name_param, drop = FALSE]
-      copula_draws <- draws_df[, copula$name_param, drop = FALSE]
-
-      # Build output
       out <- list(
         fit = fit_obj,
-        x = x,
-        draws = draws_df,
-        margin_draws = margin_draws,
-        copula_draws = copula_draws
+        x = x
       )
+
+      if (extract_df) {
+        # Extract all posterior draws
+        posterior_list <- rstan::extract(fit_obj, permuted = TRUE)
+
+        # Remove generated quantities we don't want
+        exclude <- ifelse(run_ppc == 0,
+          NULL,
+          c("x_rep", "lp__")
+        )
+
+        param_names <- setdiff(names(posterior_list), exclude)
+
+        # Convert to dataframe
+        draws_df <- as.data.frame(posterior_list[param_names])
+
+        margin_draws <- draws_df[, margin$name_param, drop = FALSE]
+        copula_draws <- draws_df[, copula$name_param, drop = FALSE]
+
+        out$margin_draws <- margin_draws
+        out$copula_draws <- copula_draws
+      }
 
       # PPC
       if (run_ppc == 1) {

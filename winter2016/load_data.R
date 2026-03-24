@@ -50,7 +50,7 @@ j.data <- j.data[-rem.xdat, ]
 
 JJA.data.clean <- JJA.data[JJA.data$TX * 0.1 > -100, ]
 
-data <- JJA.data.clean$TX * 0.1
-
 # Remove any unnecessary variables from the workspace
 rm(xdat, ydat, data, rem.xdat, hw.data.mat)
+
+data <- JJA.data.clean$TX * 0.1
