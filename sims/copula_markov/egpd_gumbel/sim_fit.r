@@ -65,8 +65,7 @@ gumbel_egpd4_fit <- gumbel_egpd4_model$fit(gumbel_egpd4_sim$x,
 ### Gumbel data fit
 gumbel_fit <- gumbel_model$fit(gumbel_sim$x,
   I = 32,
-  run_ppc = 1,
-  run_ei_mcmc = 1
+  run_ppc = 1
 )
 
 gumbeljoe_fit <- joe_model$fit(gumbel_sim$x,
