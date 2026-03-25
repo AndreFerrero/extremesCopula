@@ -15,7 +15,7 @@ gumbel_egpd2_sim <- gumbel_egpd2_model$simulate(
   seed = 46
 )
 
-gumbel_egpd4_sim <- gumbel_egpd4_model$simulate(
+gumbel_egpd4_sim <- gumbel_egpd4_noshift_model$simulate(
   n = 1000,
   copula_param = 2,
   margin_param = c(mu = 0, kappa = 2, delta = 2, sigma = 2, xi = 0.2),
@@ -55,12 +55,11 @@ gumbel_egpd2_fit <- gumbel_egpd2_model$fit(gumbel_egpd2_sim$x,
   iter = 2000,
 )
 
-gumbel_egpd4_fit <- gumbel_egpd4_model$fit(gumbel_egpd4_sim$x,
-  I = 32,
+gumbel_egpd4_noshift_fit <- gumbel_egpd4_noshift_model$fit(gumbel_egpd4_sim$x,
+  I = 25,
   run_ppc = 1,
   iter = 1000,
 )
-
 
 ### Gumbel data fit
 gumbel_fit <- gumbel_model$fit(gumbel_sim$x,
