@@ -12,7 +12,6 @@ lag_plot <- function(x) {
   plot(
     x[-n], x[-1],
     pch = 16,
-    col = rgb(0, 0, 1, 0.1),
     main = paste("Lag plot of", varname),
     xlab = bquote(.(as.name(varname))[t-1]),
     ylab = bquote(.(as.name(varname))[t])
