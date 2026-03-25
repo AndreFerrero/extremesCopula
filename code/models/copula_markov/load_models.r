@@ -12,17 +12,25 @@ rstan_options(auto_write = TRUE)
 # gaussian_stan <- rstan::stan_model("code/stan/gaussian_egpd.stan")
 
 gumbel_stan <- rstan::stan_model("code/stan/gumbel_egpd.stan")
+gumbel_egpd_noshift_stan <- rstan::stan_model("code/stan/gumbel_egpd_noshift.stan")
 # mxi_gumbel_stan <- rstan::stan_model("code/stan/mxi_gumbel_egpd.stan")
 
-gumbel_egpd2_stan <- rstan::stan_model("code/stan/gumbel_egpd2.stan")
-gumbel_egpd4_stan <- rstan::stan_model("code/stan/gumbel_egpd4.stan")
+# gumbel_egpd2_stan <- rstan::stan_model("code/stan/gumbel_egpd2.stan")
+# gumbel_egpd4_stan <- rstan::stan_model("code/stan/gumbel_egpd4.stan")
+gumbel_egpd4_noshift_stan <- rstan::stan_model("code/stan/gumbel_egpd4_noshift.stan")
 
-joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
+# joe_stan <- rstan::stan_model("code/stan/joe_egpd.stan")
 
 gumbel_model <- make_copula_markov_model(
   margin = margin_egpd,
   copula = copula_gumbel,
   stan_mod = gumbel_stan
+)
+
+gumbel_egpd_noshift_model <- make_copula_markov_model(
+  margin = margin_egpd,
+  copula = copula_gumbel,
+  stan_mod = gumbel_egpd_noshift_stan
 )
 
 # mxi_gumbel_model <- make_copula_markov_model(
@@ -31,16 +39,22 @@ gumbel_model <- make_copula_markov_model(
 #   stan_mod = mxi_gumbel_stan
 # )
 
-gumbel_egpd2_model <- make_copula_markov_model(
-  margin = margin_egpd2,
-  copula = copula_gumbel,
-  stan_mod = gumbel_egpd2_stan
-)
+# gumbel_egpd2_model <- make_copula_markov_model(
+#   margin = margin_egpd2,
+#   copula = copula_gumbel,
+#   stan_mod = gumbel_egpd2_stan
+# )
 
-gumbel_egpd4_model <- make_copula_markov_model(
+# gumbel_egpd4_model <- make_copula_markov_model(
+#   margin = margin_egpd4,
+#   copula = copula_gumbel,
+#   stan_mod = gumbel_egpd4_stan
+# )
+
+gumbel_egpd4_noshift_model <- make_copula_markov_model(
   margin = margin_egpd4,
   copula = copula_gumbel,
-  stan_mod = gumbel_egpd4_stan
+  stan_mod = gumbel_egpd4_noshift_stan
 )
 
 # gaussian_model <- make_copula_markov_model(
@@ -49,9 +63,9 @@ gumbel_egpd4_model <- make_copula_markov_model(
 #   stan_mod = gaussian_stan
 # )
 
-joe_model <- make_copula_markov_model(
-  margin = margin_egpd,
-  copula = copula_joe,
-  stan_mod = joe_stan
-)
+# joe_model <- make_copula_markov_model(
+#   margin = margin_egpd,
+#   copula = copula_joe,
+#   stan_mod = joe_stan
+# )
 
