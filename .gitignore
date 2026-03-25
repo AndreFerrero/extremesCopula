@@ -13,7 +13,7 @@ data/
 *.rds
 *.RData
 *.csv
-
+*.nc
 # -----------------------------
 # Notes folder ignored except for raw docs
 # -----------------------------
