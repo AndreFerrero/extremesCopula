@@ -55,6 +55,8 @@ box(lwd = 3)
 # Change the data onto Gaussian margins and replot the PACF
 # to show that the margins are not having any effect on things,
 # Any depednence is being captured by the copula
+par(mfrow = c(1, 1))
+
 ecdf.fun <- ecdf((JJA.data$TX * 0.1)[(JJA.data$TX * 0.1) > -100])
 dat.vals <- sapply(X = (JJA.data$TX * 0.1)[(JJA.data$TX * 0.1) > -100], FUN = ecdf.fun)
 dat.vals[dat.vals == 0] <- 1e-10
@@ -63,4 +65,8 @@ norm.vals <- qnorm(dat.vals)
 pacf(norm.vals, main = "", lwd = 2, cex.axis = 1.2, cex.lab = 1.2, xlim = c(0, 30))
 box(lwd = 3)
 
+hist(data, breaks = 30, main = "", xlab = "Temperature", cex.axis = 1.2, cex.lab = 1.2, freq = FALSE)
+lines(density(data), col = "red", lwd = 2)
 
+hist(data - min(data), breaks = 30, main = "", xlab = "Temperature", cex.axis = 1.2, cex.lab = 1.2, freq = FALSE)
+lines(density(data - min(data)), col = "red", lwd = 2)
