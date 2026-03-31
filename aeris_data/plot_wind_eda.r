@@ -28,7 +28,7 @@ library(dplyr)
 # ==========================================================================
 
 config <- list(
-  data_key = "daily_max_pos",          # which dataset to visualise
+  data_key = "hourly_pos",          # which dataset to visualise
   seasons  = c("winter", "spring", "summer", "autumn"),  # subset or reorder
   plots    = c(                    # toggle any subset
     "time_series",
@@ -62,7 +62,7 @@ config <- list(
   # Output files are named: <data_key>_<plot_type>.pdf
   # -------------------------------------------------------------------
   save_plots = TRUE,
-  save_dir   = "aeris_data/mtp_aereoport/mtp_figures/max_daily"
+  save_dir   = "aeris_data/mtp_aereoport/mtp_figures/hourly"
 )
 
 # ==========================================================================
@@ -145,7 +145,10 @@ make_copula_df <- function(x) {
 
 plot_time_series <- function(entry, season, ...) {
   plot(entry$time, entry$values,
-       type = "l",
+       pch = 16, 
+       cex = 0.2, 
+       # The '20' at the end of the hex code adds transparency (00 to FF)
+       col = "#00000020", 
        main = paste("Time series -", config$data_key, "/", season),
        xlab = "Time", ylab = config$xlab)
 }

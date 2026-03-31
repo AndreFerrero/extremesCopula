@@ -5,21 +5,30 @@
 source("code/handy_funs.r")
 load("aeris_data/mtp_aereoport/wind_hourly_data.RData")
 
-library(ggplot2)
 library(dplyr)
 
 # =========================
 # HELPER FUNCTIONS
 # =========================
 
-make_season_df <- function(winter, spring, summer, autumn) {
-  data.frame(
-    value = c(winter, spring, summer, autumn),
-    season = rep(
-      c("winter", "spring", "summer", "autumn"),
-      times = c(length(winter), length(spring), length(summer), length(autumn))
-    )
+make_season_list <- function(winter, spring, summer, autumn) {
+  list(
+    winter = winter,
+    spring = spring,
+    summer = summer,
+    autumn = autumn
   )
+}
+
+plot_hist_seasons <- function(w, sp, su, a, main_title = "") {
+  par(mfrow = c(2, 2))
+  
+  hist(w, breaks = 50, main = paste(main_title, "Winter"), xlab = "Wind Speed")
+  hist(sp, breaks = 50, main = paste(main_title, "Spring"), xlab = "Wind Speed")
+  hist(su, breaks = 50, main = paste(main_title, "Summer"), xlab = "Wind Speed")
+  hist(a, breaks = 50, main = paste(main_title, "Autumn"), xlab = "Wind Speed")
+  
+  par(mfrow = c(1, 1))
 }
 
 plot_lags <- function(w, sp, su, a, title_prefix = "") {
@@ -43,56 +52,88 @@ plot_acf <- function(w, sp, su, a, title_prefix = "") {
 make_copula_df <- function(x) {
   x_lag <- dplyr::lag(x)
 
-  df <- data.frame(x = x, x_lag = x_lag) %>%
-    filter(!is.na(x) & !is.na(x_lag))
+  df <- data.frame(x = x, x_lag = x_lag)
+  df <- df[!is.na(df$x) & !is.na(df$x_lag), ]
 
-  df$U_t   <- rank(df$x) / (nrow(df) + 1)
-  df$U_t_1 <- rank(df$x_lag) / (nrow(df) + 1)
+  n <- nrow(df)
+
+  df$U_t   <- rank(df$x) / (n + 1)
+  df$U_t_1 <- rank(df$x_lag) / (n + 1)
 
   return(df)
 }
 
-make_copula_plot <- function(data_list, title) {
-  df <- bind_rows(data_list, .id = "season")
+plot_copula_base <- function(copula_list, main_title = "") {
+  par(mfrow = c(2, 2))
+  
+  for (season in names(copula_list)) {
+    df <- copula_list[[season]]
+    
+    plot(
+      df$U_t_1, df$U_t,
+      pch = 16,
+      cex = 0.5,
+      main = paste(main_title, "-", season),
+      xlab = expression(U[t-1]),
+      ylab = expression(U[t])
+    )
+  }
+  
+  par(mfrow = c(1, 1))
+}
 
-  ggplot(df, aes(x = U_t_1, y = U_t)) +
-    geom_point(alpha = 0.3) +
-    facet_wrap(~season) +
-    labs(
-      title = title,
-      x = expression(U[t - 1]),
-      y = expression(U[t])
-    ) +
-    theme_bw()
+plot_upper_tail <- function(copula_list, threshold = 0.9) {
+  par(mfrow = c(2, 2))
+  
+  for (season in names(copula_list)) {
+    df <- copula_list[[season]]
+    
+    df_tail <- df[df$U_t > threshold & df$U_t_1 > threshold, ]
+    
+    plot(
+      df_tail$U_t_1, df_tail$U_t,
+      pch = 16,
+      cex = 0.5,
+      xlim = c(threshold, 1),
+      ylim = c(threshold, 1),
+      main = paste("Upper Tail -", season),
+      xlab = expression(U[t-1]),
+      ylab = expression(U[t])
+    )
+  }
+  
+  par(mfrow = c(1, 1))
 }
 
 # =========================
 # TIME SERIES
 # =========================
 
-plot(wind_full,
-     type = "l",
-     main = "Wind Speed",
-     xlab = "Time Index",
-     ylab = "Wind Speed")
+plot(
+  wind_full,
+  type = "l",
+  main = "Wind Speed",
+  xlab = "Time Index",
+  ylab = "Wind Speed"
+)
 
 # =========================
 # HISTOGRAMS (ALL DATA)
 # =========================
 
-df_hist <- make_season_df(
-  wind_winter, wind_spring, wind_summer, wind_autumn
+plot_hist_seasons(
+  wind_winter, wind_spring, wind_summer, wind_autumn,
+  "Histogram -"
 )
 
-ggplot(df_hist, aes(x = value)) +
-  geom_histogram(bins = 50, alpha = 0.7) +
-  facet_wrap(~season, scales = "free_y") +
-  labs(
-    title = "Histogram of Wind Speed by Season",
-    x = "Wind Speed",
-    y = "Count"
-  ) +
-  theme_bw()
+# =========================
+# HISTOGRAMS (POSITIVE ONLY)
+# =========================
+
+plot_hist_seasons(
+  wind_pos_winter, wind_pos_spring, wind_pos_summer, wind_pos_autumn,
+  "Histogram (Positive) -"
+)
 
 # =========================
 # LAG PLOTS
@@ -105,7 +146,7 @@ plot_lags(
 
 plot_lags(
   wind_pos_winter, wind_pos_spring, wind_pos_summer, wind_pos_autumn,
-  "Lag -"
+  "Lag (Positive) -"
 )
 
 # =========================
@@ -118,42 +159,31 @@ plot_acf(
 )
 
 plot_acf(
-  wind_pos_winter, wind_spring, wind_summer, wind_autumn,
-  "ACF -"
+  wind_pos_winter, wind_pos_spring, wind_pos_summer, wind_pos_autumn,
+  "ACF (Positive) -"
 )
 
 # =========================
 # COPULA ANALYSIS
 # =========================
 
-copula_list <- list(
-  winter = make_copula_df(wind_winter),
-  spring = make_copula_df(wind_spring),
-  summer = make_copula_df(wind_summer),
-  autumn = make_copula_df(wind_autumn)
+copula_pos_list <- list(
+  winter = make_copula_df(wind_pos_winter),
+  spring = make_copula_df(wind_pos_spring),
+  summer = make_copula_df(wind_pos_summer),
+  autumn = make_copula_df(wind_pos_autumn)
 )
 
-df_copula <- bind_rows(copula_list, .id = "season")
-
-make_copula_plot(
-  copula_list,
-  "Lagged Copula of Wind Speed"
+plot_copula_base(
+  copula_pos_list,
+  "Lagged Copula of Positive Wind Speed"
 )
 
 # =========================
 # UPPER TAIL ANALYSIS
 # =========================
 
-df_zoom <- df_copula %>%
-  filter(U_t > 0.9 & U_t_1 > 0.9)
-
-ggplot(df_zoom, aes(x = U_t_1, y = U_t)) +
-  geom_point(alpha = 0.2, size = 0.5) +
-  facet_wrap(~season) +
-  coord_cartesian(xlim = c(0.9, 1), ylim = c(0.9, 1)) +
-  labs(
-    title = "Upper Tail Dependence (Wind Speed)",
-    x = expression(U[t - 1]),
-    y = expression(U[t])
-  ) +
-  theme_bw()
+plot_upper_tail(
+  copula_pos_list,
+  threshold = 0.90
+)

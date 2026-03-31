@@ -1,13 +1,12 @@
 # =========================
 # LOAD + PREPARE DATA (WIND)
 # =========================
-
 library(ncdf4)
 library(dplyr)
 library(lubridate)
 
-nc_folder <- "aeris_data/mtp_aereoport/data"
-files <- paste0(nc_folder, "34154001_MONTPELLIER-AEROPORT_MTO_1H_", 2009:2025, ".nc")
+nc_folder <- "aeris_data/mtp_aereoport/data/"
+files <- paste0(nc_folder, "34154001_MONTPELLIER-AEROPORT_MTO_1H_", 2006:2025, ".nc")
 
 # ------------------------------------------------------------------
 # 1. Read raw hourly data
@@ -15,6 +14,7 @@ files <- paste0(nc_folder, "34154001_MONTPELLIER-AEROPORT_MTO_1H_", 2009:2025, "
 
 wind_list <- lapply(files, function(f) {
   nc_data <- nc_open(f)
+  print(ncatt_get(nc_data, "time", "units")$value)
   time  <- ncvar_get(nc_data, "time")
   wind  <- ncvar_get(nc_data, "ws")
   nc_close(nc_data)
@@ -25,6 +25,7 @@ wind_list <- lapply(files, function(f) {
     wind_speed = wind
   )
 })
+
 
 df <- bind_rows(wind_list) %>%
   filter(!is.na(wind_speed)) %>%
