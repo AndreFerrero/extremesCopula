@@ -1,5 +1,6 @@
 library(mev)
 library(evd)
+library(egpd)
 library(extRemes) # For standard GPD fitting
 ?fit.extgp
 
@@ -7,7 +8,7 @@ source("code/models/margins/egp.r")
 
 x <- margin_egp$sample(100, c(mu = 0, kappa = 1.5, sigma = 2, xi = 0.2))
 y <- rfrechet(100, scale = 1, shape = 4)
-x_norm <- rnorm(1e6, mean = 4, sd = 1)
+x_norm <- rnorm(1000, mean = 4, sd = 1)
 
 p <- 0.85
 plot(x_norm)
@@ -15,14 +16,10 @@ abline(h = quantile(x_norm, p), col = "red", lty = 2) # Threshold for GPD fit
 sum(x_norm > quantile(x_norm, p)) # Number of exceedances
 hist(x_norm[x_norm > quantile(x_norm, p)], breaks = 20, main = "Exceedances over 85th Percentile", xlab = "Exceedance Value")
 
-plot(y)
-abline(h = quantile(y, p), col = "red", lty = 2) # Threshold for GPD fit
-sum(y > quantile(y, p)) # Number of exceedances
-hist(y[y > quantile(y, p)], breaks = 20, main = "Exceedances over 95th Percentile", xlab = "Exceedance Value")
 
 # 1. Fit the EGPD to ALL data (Global Fit)
 # 'model = 1' in mev corresponds to your [GPD]^kappa model
-fit_egpd <- fit.extgp(x_norm,
+fit_egpd_mev <- fit.extgp(x_norm,
     model = 1, init = list(kappa = 1, sigma = sd(x_norm), xi = 0.1),
     method = "mle"
 )
@@ -30,6 +27,17 @@ fit_egpd <- fit.extgp(x_norm,
 params_egpd <- fit_egpd$fit$mle
 
 # params_egpd contains: [kappa, sigma, xi]
+
+# NEW package fit
+fit_egpd <- egpd::fitegpd(
+     x_norm,
+     type = 1,
+     family = "egpd"
+)
+
+summary(fit_egpd)
+plot(fit_egpd)
+
 
 # 2. Fit a standard GPD to the TAIL only (Benchmark)
 # Pick a high threshold (e.g., 95th percentile)
