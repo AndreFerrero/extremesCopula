@@ -35,7 +35,7 @@ plot(fit_egpd)
 ## GPD
 ########
 
-u <- quantile(winter_hourly_gust, 0.96)
+u <- quantile(winter_hourly_gust, 0.90)
 fit_gpd <- extRemes::fevd(winter_hourly_gust, threshold = u, type = "GP", method = "MLE")
 
 fit_gpd$results$par
