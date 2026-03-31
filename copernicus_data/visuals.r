@@ -1,4 +1,4 @@
-source("copernicus_data/load.R")
+source("copernicus_data/load_data.R")
 
 # =========================
 # 3. COPULA FUNCTION (ECDF)
