@@ -2,6 +2,17 @@ source("copernicus_data/load_data.R")
 
 winter_hourly_gust <- data$fg10[data$season == "Winter"]
 
+## Hill estimator
+
+h_hat <- ReIns::Hill(winter_hourly_gust, plot = TRUE)
+
+
+library(extRemes)
+
+u <- quantile(winter_hourly_gust, 0.90)
+declust <- extRemes::decluster(winter_hourly_gust, threshold = u, run = 4)
+ReIns::Hill(declust, plot = TRUE)
+
 ########
 ## EGPD NAVEAU
 ########
@@ -49,3 +60,12 @@ th_plot <- threshrange.plot(winter_hourly_gust, nint = 50)
 head(th_plot)
 
 th_plot
+
+
+
+library(extRemes)
+
+dc <- decluster(winter_hourly_gust, threshold = u, run = 3)
+
+fit_dc <- fevd(dc, threshold = u, type = "GP")
+fit_dc$results$par
