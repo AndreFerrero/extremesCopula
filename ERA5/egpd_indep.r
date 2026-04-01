@@ -1,17 +1,10 @@
-source("copernicus_data/load_data.R")
+source("ERA5/load_data.R")
 
 winter_hourly_gust <- data$fg10[data$season == "Winter"]
 
 ## Hill estimator
-
+# Increasing curve suggest weibull domain of attraction instead of frechet
 h_hat <- ReIns::Hill(winter_hourly_gust, plot = TRUE)
-
-
-library(extRemes)
-
-u <- quantile(winter_hourly_gust, 0.90)
-declust <- extRemes::decluster(winter_hourly_gust, threshold = u, run = 4)
-ReIns::Hill(declust, plot = TRUE)
 
 ########
 ## EGPD NAVEAU
@@ -45,6 +38,13 @@ plot(fit_egpd)
 ########
 ## GPD
 ########
+library(extRemes)
+
+# stability plot for GPD parameters
+th_plot <- threshrange.plot(winter_hourly_gust, nint = 50)
+
+head(th_plot)
+
 
 u <- quantile(winter_hourly_gust, 0.90)
 fit_gpd <- extRemes::fevd(winter_hourly_gust, threshold = u, type = "GP", method = "MLE")
@@ -53,19 +53,19 @@ fit_gpd$results$par
 
 sum(winter_hourly_gust > u)
 
-library(extRemes)
+# try declustering to see if removing dependence changes the estimates
 
-th_plot <- threshrange.plot(winter_hourly_gust, nint = 50)
+dc_runs <- extRemes::decluster(winter_hourly_gust, threshold = u)
+dc_runs
 
-head(th_plot)
+dc_intervals <- extRemes::decluster(winter_hourly_gust,
+     threshold = u,
+     method = "interval"
+)
+dc_intervals
 
-th_plot
-
-
-
-library(extRemes)
-
-dc <- decluster(winter_hourly_gust, threshold = u, run = 3)
-
-fit_dc <- fevd(dc, threshold = u, type = "GP")
+fit_dc <- fevd(dc_runs, threshold = u, type = "GP")
 fit_dc$results$par
+
+fit_dc_int <- fevd(dc_intervals, threshold = u, type = "GP")
+fit_dc_int$results$par

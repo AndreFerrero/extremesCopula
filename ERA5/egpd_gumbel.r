@@ -1,4 +1,4 @@
-source("copernicus_data/load_data.r")
+source("ERA5/load_data.r")
 
 source("winter2016/marg_dep_mods_funcs.R")
 
@@ -146,7 +146,7 @@ egpd_gumbel_fit <- gumbel_egpd_noshift_model$fit(
   init_par = init_ll
 )
 
-# save(egpd_gumbel_fit, file = "copernicus_data/egpd_gumbel_fit.RData")
+# save(egpd_gumbel_fit, file = "ERA5/egpd_gumbel_fit.RData")
 
 params <- c("kappa", "sigma", "xi", "theta")
 
