@@ -34,6 +34,31 @@ fit_egpd <- egpd::fitegpd(
 summary(fit_egpd)
 plot(fit_egpd)
 
+bern_m <- c(3, 4, 6, 8, 12)
+aic_compare <- numeric(length(bern_m))
+bic_compare <- numeric(length(bern_m))
+
+for(i_m in seq_along(bern_m)) {
+     fit <- fitegpd(winter_hourly_gust, type = 1,
+     method = "bernstein", bernstein.m = bern_m[i_m])
+     aic_compare[i_m] <- AIC(fit)
+     bic_compare[i_m] <- BIC(fit)
+}
+
+data.frame(m = bern_m, AIC = round(aic_compare, 2), BIC = round(bic_compare, 2))
+
+fit_egpd_bern <- egpd::fitegpd(
+     winter_hourly_gust,
+     type = 1,
+     family = "egpd",
+     method = "bernstein",
+     bernstein.m = bern_m[which.min(bic_compare)]
+)
+
+summary(fit_egpd_bern)
+plot(fit_egpd_bern)
+BIC(fit_egpd_bern)
+BIC(fit_egpd)
 
 ########
 ## GPD
