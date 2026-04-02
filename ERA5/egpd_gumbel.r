@@ -27,7 +27,7 @@ theta_tau
 # dependence statistics : Strong evidence for asymptotic dependence
 chi <- texmex::chi(as.matrix(winter_lag))
 par(mfrow = c(1, 2))
-plot(chi, show=c("Chi"=TRUE,"ChiBar"=TRUE))
+plot(chi, show = c("Chi" = TRUE, "ChiBar" = TRUE))
 par(mfrow = c(1, 1))
 
 
@@ -95,7 +95,7 @@ for (j in seq_along(thresholds)) {
 res_df <- do.call(rbind, results)
 
 plot(res_df$threshold, res_df$xi_mean,
-	type = "b", pch = 16,
+  type = "b", pch = 16,
   xlab = "Threshold", ylab = "xi",
   main = "Threshold Stability (xi)"
 )
@@ -114,13 +114,39 @@ plot(res_df$threshold, res_df$theta_mean,
 )
 
 plot(res_df$threshold, res_df$lambda_mean,
-  type = "b", pch = 16,,
+  type = "b", pch = 16, ,
   xlab = "Threshold", ylab = "lambda",
   main = "Threshold Stability (exceedance rate)"
 )
 
+
 #######
-# FULL bayesian model GUMBEL + EGPD
+# Frequentist Gumbel + EGPD Power
+######
+source("code/models/copula_markov/egpd_gumbel.r")
+
+# Initial values from marginal-only fit
+init_marg <- fitegpd(winter_hourly_gust, method = "mle", model = 1)
+
+# Initial theta_vec
+# [log_kappa, log_sigma, xi, log(theta_copula - 1)]
+start_params <- c(
+  log(init_marg$estimate["kappa"]),
+  log(init_marg$estimate["sigma"]),
+  init_marg$estimate["xi"],
+  log(theta_tau - 1)
+)
+
+fit_res_egpd_gumbel <- fit_egpd_gumbel(winter_hourly_gust, init_par = start_params)
+
+res_kappa <- exp(fit_res_egpd_gumbel$par[1])
+res_sigma <- exp(fit_res_egpd_gumbel$par[2])
+res_xi <- fit_res_egpd_gumbel$par[3]
+res_theta <- exp(fit_res_egpd_gumbel$par[4]) + 1
+
+
+#######
+# Bayesian GUMBEL + EGPD Power
 #######
 
 init_fun <- function(x, chain_id, seed = 46) {
@@ -147,6 +173,7 @@ egpd_gumbel_fit <- gumbel_egpd_noshift_model$fit(
 )
 
 # save(egpd_gumbel_fit, file = "ERA5/egpd_gumbel_fit.RData")
+load("ERA5/egpd_gumbel_fit.RData")
 
 params <- c("kappa", "sigma", "xi", "theta")
 
@@ -165,7 +192,7 @@ draws <- rstan::extract(egpd_gumbel_fit$fit, pars = params)
 
 cor(cbind(draws$kappa, draws$sigma, draws$xi, draws$theta))
 
-ppc_dens_overlay(winter_hourly_gust, egpd_gumbel_fit$ppc[1:800, ]) +
+ppc_dens_overlay(winter_hourly_gust, egpd_gumbel_fit$ppc[1:100, ]) +
   ggtitle("Posterior Predictive Check: Density Overlay")
 
 ppc_stat(winter_hourly_gust, egpd_gumbel_fit$ppc, stat = "max") +
@@ -202,50 +229,49 @@ sum(q90_ppc > winter_q90) / length(q90_ppc)
 #---------------------------------------
 # Inputs:
 #---------------------------------------
-ppc <- egpd_gumbel_fit$ppc   # posterior predictive: rows=MCMC draws, cols=time points
+ppc <- egpd_gumbel_fit$ppc # posterior predictive: rows=MCMC draws, cols=time points
 u <- 0.95
-block_size <- 24        # e.g., yearly block for block maxima (adjust as needed)
+block_size <- 24 # e.g., yearly block for block maxima (adjust as needed)
 n_draws <- nrow(ppc)
-n_time  <- ncol(ppc)
+n_time <- ncol(ppc)
 
 #---------------------------------------
 # Storage for summaries
 #---------------------------------------
 cluster_sizes_list <- vector("list", n_draws)
-prob_run3          <- numeric(n_draws)
-prob_run8          <- numeric(n_draws)
-joint_prob         <- numeric(n_draws)
-block_maxima       <- vector("list", n_draws)
+prob_run3 <- numeric(n_draws)
+prob_run8 <- numeric(n_draws)
+joint_prob <- numeric(n_draws)
+block_maxima <- vector("list", n_draws)
 
 #---------------------------------------
 # Loop over posterior predictive draws
 #---------------------------------------
 
 for (i in 1:n_draws) {
-  
   sim <- ppc[i, ]
-  
+
   #--- 1. Identify exceedances
   exceed <- sim > quantile(sim, probs = u)
   r <- rle(exceed)
-  
+
   # Cluster sizes (only for TRUE clusters)
   cluster_sizes <- r$lengths[r$values]
   cluster_sizes_list[[i]] <- cluster_sizes
-  
+
   # Probability of at least 3 consecutive exceedances
   prob_run3[i] <- as.numeric(any(cluster_sizes >= 3))
   prob_run8[i] <- as.numeric(any(cluster_sizes >= 8))
 
   # Joint exceedance probability P(X_t>u, X_{t+1}>u)
   joint_prob[i] <- mean(sim[-n_time] > quantile(sim, probs = u) & sim[-1] > quantile(sim, probs = u))
-  
+
   #--- 2. Block maxima
   # Split into blocks
   n_blocks <- floor(n_time / block_size)
   block_max <- sapply(1:n_blocks, function(b) {
-    start <- (b-1)*block_size + 1
-    end   <- b*block_size
+    start <- (b - 1) * block_size + 1
+    end <- b * block_size
     max(sim[start:end])
   })
   block_maxima[[i]] <- block_max
