@@ -4,7 +4,7 @@ library(dplyr)
 # =========================
 # 1. LOAD & PREP DATA
 # =========================
-data <- read.csv("copernicus_data/cop_data.csv")
+data <- read.csv("ERA5/cop_data.csv")
 
 data <- data %>%
   filter(!is.na(fg10)) %>%
