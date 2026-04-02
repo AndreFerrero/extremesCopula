@@ -1,4 +1,5 @@
 library(texmex)
+library(egpd)
 
 data(wavesurge)
 
@@ -13,12 +14,20 @@ h_hat <- ReIns::Hill(wavesurge$wave, plot = TRUE)
 fit_egpd <- egpd::fitegpd(
      wavesurge$wave,
      type = 1,
-     family = "egpd"
+     family = "egpd",
+     method = "bernstein",
+     bernstein.m = 3
 )
 
 summary(fit_egpd)
 plot(fit_egpd)
 
+AIC(fit_egpd)
+
+aic_m <- sapply(c(3, 4, 6, 8, 12), function(m) {
+  AIC(fitegpd(wavesurge$wave, type = 1, method = "bernstein", bernstein.m = m))
+})
+data.frame(m = c(4, 6, 8, 12), AIC = round(aic_m, 2))
 
 library(extRemes)
 
