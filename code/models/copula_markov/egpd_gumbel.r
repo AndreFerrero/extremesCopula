@@ -2,8 +2,8 @@
 # u, v are the PIT values from the marginal CDF
 log_dgumbel_copula <- function(u, v, theta) {
   # Ensure u, v are in (0, 1)
-  u <- pmin(pmax(u, 1e-10), 1 - 1e-10)
-  v <- pmin(pmax(v, 1e-10), 1 - 1e-10)
+  u <- pmin(pmax(u, 1e-6), 1 - 1e-6)
+  v <- pmin(pmax(v, 1e-6), 1 - 1e-6)
 
   x <- -log(u)
   y <- -log(v)
@@ -32,10 +32,14 @@ egpd_gumbel_nll <- function(theta_vec, x) {
     xi = xi, kappa = kappa,
     type = 1, log = TRUE
   )
+  if (any(1 + xi * x / sigma <= 0)) {
+    return(1e20)
+  }
 
   # 3. Copula Dependence
   # U_t = H(x)^kappa
   x_u <- egpd:::pegpd(x, sigma = sigma, xi = xi, kappa = kappa, type = 1)
+  x_u <- pmin(pmax(x_u, 1e-10), 1 - 1e-10)
 
   n <- length(x)
   # log_dgumbel_copula from previous code block
@@ -55,7 +59,6 @@ fit_egpd_gumbel <- function(x, init_par) {
     fn = egpd_gumbel_nll,
     x = x,
     method = "Nelder-Mead",
-    control = list(maxit = 5000)
+    control = list(maxit = 10000)
   )
 }
-
