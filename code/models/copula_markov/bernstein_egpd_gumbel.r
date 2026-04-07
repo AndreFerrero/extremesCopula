@@ -51,17 +51,17 @@ fitegpd_berstein_gumbel <- function(x, init_par = NULL, m = 5) {
   # Automatically initialize if no parameters provided
   if (is.null(init_par)) {
     message("No initial parameters provided. Calculating automatic starts...")
-    init_marg <- egpd::fitegpd(x, method = "bernstein", bernstein.m = m_degree)
+    init_marg <- egpd::fitegpd(x, method = "bernstein", bernstein.m = m)
 
     init_par <- c(
-      log(egpd::fitegpd(x)$estimate["kappa"]),
-      log(egpd::fitegpd(x)$estimate["sigma"]),
-      egpd::fitegpd(x)$estimate["xi"],
+      log(init_marg["kappa"]),
+      log(init_marg["sigma"]),
+      init_marg["xi"],
       rep(0, m), # flat weights to start
       log(2) # starting theta_copula at 3 (exp(log(2))+1)
     )
   }
-  
+
   optim(
     par = init_par,
     fn = bernstein_copula_nll,
