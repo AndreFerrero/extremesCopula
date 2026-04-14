@@ -245,132 +245,141 @@ ggplot(summary_stats, aes(x = as.factor(theta), y = median_xi, color = model)) +
 
 ### Bigger simulation study for consistency
 
-set.seed(123)
+# --- Generator Library ---
 
-# Setup
-theta_sequence <- c(1.5, 3.0, 4.5, 6.0)
-n_sequence <- c(500, 1000, 2000, 4000, 8000)  # Different sample sizes
-mc_it <- 50  # Iterations per (theta, n) combination
-r_dc <- 1
-threshold_probs <- c(0.9, 0.95)
-true_margin_sim <- c(mu = 0, kappa = 6, sigma = 1, xi = 0.1)
-true_tail_index <- true_margin_sim["xi"]
-
-# Parallel setup - only parallelize over theta
-n_cores <- min(detectCores() - 1, length(theta_sequence))
-cl <- makeCluster(n_cores)
-registerDoParallel(cl)
-
-# Export necessary objects to cluster
-clusterExport(cl, c(
-  "n_sequence", "mc_it", "r_dc", "threshold_probs", "true_margin_sim", 
-  "true_tail_index", "simulate_copula_markov",
-  "sim_model", "lag_df", "fit_egpd_gumbel", "FitGpd", "sample_bisection",
-  "margin_egpd", "copula_gumbel", "copula_joe"
-))
-
-# Parallel execution over theta
-consistency_results <- foreach(
-  th = theta_sequence,
-  .combine = rbind,
-  .packages = c("extRemes", "egpd")
-) %dopar% {
-  
-  theta_results <- list()
-  
-  # Loop over sample sizes (sequential within each theta)
-  for (n_idx in seq_along(n_sequence)) {
-    n_sim <- n_sequence[n_idx]
-    
-    cat(sprintf(
-      "[%s] theta = %.1f, n = %d (%d iterations)\n",
-      Sys.time(), th, n_sim, mc_it
-    ))
-    
-    # Loop over Monte Carlo iterations
-    for (i in 1:mc_it) {
-      
-      # Simulate
-      sim_data <- sim_model$simulate(
-        n = n_sim,
-        copula_param = th,
-        margin_param = true_margin_sim
-      )
-      
-      # Store data in lag_df form
-      data_lag <- lag_df(sim_data$x)
-      
-      # Fit threshold independent models (same across thresholds)
-      fit_egpd_iid <- egpd::fitegpd(sim_data$x, type = 1)
-      fit_egpd_dep <- fit_egpd_gumbel(sim_data$x, method = "Nelder-Mead")
-      
-      # Compute thresholds
-      thresholds <- quantile(sim_data$x, probs = threshold_probs)
-      
-      # Store results for each threshold
-      thresh_results <- list()
-      for (p in seq_along(threshold_probs)) {
-        u_fix <- thresholds[p]
-        
-        # Fit threshold-dependent models
-        fit_gpd_iid <- extRemes::fevd(sim_data$x, threshold = u_fix, type = "GP")
-        sim_dcruns <- extRemes::decluster(sim_data$x, threshold = u_fix, r = r_dc)
-        fit_gpd_dcruns <- extRemes::fevd(sim_dcruns, threshold = u_fix, type = "GP")
-        fit_gpd_gumbel_cens <- FitGpd(dat = data_lag, u = u_fix, optim.type = 2)
-        
-        # Store results for this threshold
-        thresh_results[[p]] <- data.frame(
-          theta = th,
-          n = n_sim,
-          iteration = i,
-          threshold = threshold_probs[p],
-          model = c(
-            "IID_EGPD", "IID_GPD", "GPD_DCRUNS",
-            "Censored_GPD_GUMBEL", "EGPD_GUMBEL"
-          ),
-          xi_hat = c(
-            fit_egpd_iid$estimate["xi"],
-            fit_gpd_iid$results$par["shape"],
-            fit_gpd_dcruns$results$par["shape"],
-            fit_gpd_gumbel_cens$par[3],
-            fit_egpd_dep$estimate["xi"]
-          ),
-          stringsAsFactors = FALSE
-        )
-      }
-      
-      # Combine all thresholds for this iteration
-      theta_results[[length(theta_results) + 1]] <- do.call(rbind, thresh_results)
-    }
-  }
-  
-  # Combine all results for this theta
-  do.call(rbind, theta_results)
+# 1. Original Markov Gumbel (Your "Home Field" model)
+gen_gumbel_markov <- function(n, dep_param, xi, kappa=6, sigma=1) {
+  sim_data <- sim_model$simulate(
+    n = n,
+    copula_param = dep_param,
+    margin_param = c(mu=0, kappa=kappa, sigma=sigma, xi=xi)
+  )
+  return(sim_data$x)
 }
 
-stopCluster(cl)
+# 2. Raw AR(1) Pareto (Linear Misspecification)
+gen_ar1_pareto <- function(n, dep_param, xi) {
+  burn_in <- 500
+  total_n <- n + burn_in
+  innov <- (1 - runif(total_n))^(-xi)
+  x <- numeric(total_n)
+  x[1] <- innov[1]
+  for(t in 2:total_n) x[t] <- dep_param * x[t-1] + innov[t]
+  return(x[(burn_in + 1):total_n])
+}
 
-consistency_results$bias <- consistency_results$xi_hat - true_tail_index
+run_study <- function(generator_fn, 
+                      dep_sequence, 
+                      n_sequence, 
+                      mc_it = 100, 
+                      true_xi = 0.1,
+                      threshold_probs = c(0.9, 0.95),
+                      r_dc = 1,
+                      extra_gen_args = list()) {
+  
+  n_cores <- min(parallel::detectCores() - 1, length(dep_sequence))
+  cl <- parallel::makeCluster(n_cores)
+  doParallel::registerDoParallel(cl)
+  parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
+  
+  results <- foreach(
+    dep_val = dep_sequence,
+    .combine = rbind,
+    .packages = c("extRemes", "egpd", "tidyverse")
+  ) %dopar% {
+    
+    # Helper to safely extract xi or return NA
+    get_xi <- function(fit, type) {
+      if (is.null(fit)) return(NA)
+      if (type == "egpd") return(fit$estimate["xi"])
+      if (type == "fevd") return(fit$results$par["shape"])
+      if (type == "censored") return(fit$par[3])
+      return(NA)
+    }
+    
+    iter_results <- list()
+    
+    for (n_sim in n_sequence) {
+      for (i in 1:mc_it) {
+        gen_args <- c(list(n = n_sim, dep_param = dep_val, xi = true_xi), extra_gen_args)
+        x_sim <- do.call(generator_fn, gen_args)
+        
+        data_lag <- lag_df(x_sim)
+        thresholds <- quantile(x_sim, probs = threshold_probs)
+        
+        fit_egpd_iid <- tryCatch(egpd::fitegpd(x_sim, type = 1), error = function(e) NULL)
+        fit_egpd_dep <- tryCatch(fit_egpd_gumbel(x_sim, method = "Nelder-Mead"), error = function(e) NULL)
+        
+        for (p in seq_along(threshold_probs)) {
+          u_fix <- thresholds[p]
+          
+          fit_gpd_iid <- tryCatch(extRemes::fevd(x_sim, threshold = u_fix, type = "GP"), error = function(e) NULL)
+          sim_dcruns <- tryCatch(extRemes::decluster(x_sim, threshold = u_fix, r = r_dc), error = function(e) NULL)
+          fit_gpd_dcruns <- tryCatch(extRemes::fevd(sim_dcruns, threshold = u_fix, type = "GP"), error = function(e) NULL)
+          fit_gpd_gumbel_cens <- tryCatch(FitGpd(dat = data_lag, u = u_fix, optim.type = 2), error = function(e) NULL)
+          
+          # Now xi_hat is guaranteed to have length 5
+          xi_hat_vec <- c(
+            get_xi(fit_egpd_iid, "egpd"),
+            get_xi(fit_gpd_iid, "fevd"),
+            get_xi(fit_gpd_dcruns, "fevd"),
+            get_xi(fit_gpd_gumbel_cens, "censored"),
+            get_xi(fit_egpd_dep, "egpd")
+          )
+          
+          iter_results[[length(iter_results) + 1]] <- data.frame(
+            dep_val = dep_val, 
+            n = n_sim, 
+            iteration = i, 
+            threshold = threshold_probs[p],
+            model = c("IID_EGPD", "IID_GPD", "GPD_DCRUNS", "Censored_GPD_GUMBEL", "EGPD_GUMBEL"),
+            xi_hat = xi_hat_vec
+          )
+        }
+      }
+    }
+    do.call(rbind, iter_results)
+  }
+  
+  parallel::stopCluster(cl)
+  return(results %>% mutate(bias = xi_hat - true_xi))
+}
 
-save(consistency_results, file = "sims/copula_markov/egpd_gumbel/res/consistency_results_xi01.RData")
+set.seed(123)
+
+results_gumbel <- run_study(
+  generator_fn = gen_gumbel_markov,
+  dep_sequence = c(1.5, 3, 4.5, 6),
+  n_sequence = c(500, 1000, 2000, 4000, 8000),
+  mc_it = 200,
+  extra_gen_args = list(kappa = 6)
+)
+
+save(results_gumbel, file = "sims/copula_markov/egpd_gumbel/res/egpd_gumbel_200mc_consistency_results_xi01.RData")
 
 
 # Compute summary statistics (mean bias, sd, RMSE) for each combination
-summary_results <- consistency_results %>%
-  group_by(theta, n, model, threshold) %>%
+summary_results <- results_gumbel %>%
+  group_by(dep_val, n, model, threshold) %>% # Use dep_val as per your run_study code
   summarise(
-    mean_bias = mean(bias, na.rm = TRUE),
-    sd_bias = sd(bias, na.rm = TRUE),
+    # Calculations skip NAs
+    mean_bias   = mean(bias, na.rm = TRUE),
+    sd_bias     = sd(bias, na.rm = TRUE),
     median_bias = median(bias, na.rm = TRUE),
-    mad_bias = mad(bias, na.rm = TRUE),
-    rmse = sqrt(mean(bias^2, na.rm = TRUE)),
-    n_obs = n(),
+    mad_bias    = mad(bias, na.rm = TRUE),
+    rmse        = sqrt(mean(bias^2, na.rm = TRUE)),
+    
+    # Track counts
+    total_attempts = n(),                       # How many iterations we tried
+    converged_obs  = sum(!is.na(xi_hat)),       # How many actually worked
+    conv_rate      = sum(!is.na(xi_hat)) / n(), # Percentage success
+    
     .groups = "drop"
   )
 
 # Create faceted plot by theta and threshold
 # You can choose to focus on one threshold or show all
-selected_threshold <- 0.95  # Choose your preferred threshold
+selected_threshold <- 0.90  # Choose your preferred threshold
 
 plot_data <- summary_results %>%
   filter(threshold == selected_threshold)
@@ -378,8 +387,8 @@ plot_data <- summary_results %>%
 p <- ggplot(plot_data, aes(x = n, y = median_bias, color = model, linetype = model)) +
   geom_line(linewidth = 0.8) +
   geom_point(size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray30") +
-  facet_wrap(~ theta, nrow = 2, 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  facet_wrap(~ dep_val, nrow = 2, 
              labeller = labeller(theta = function(x) paste("θ =", x))) +
   scale_x_continuous(trans = "log10", breaks = n_sequence) +
   labs(
@@ -415,7 +424,7 @@ p_loglog <- ggplot(plot_data, aes(x = n, y = abs(median_bias), color = model)) +
            size = 3, hjust = -0.2) +
   annotate("text", x = 1000, y = 1/1000, label = "n^(-1)", 
            size = 3, hjust = -0.2) +
-  facet_wrap(~ theta, nrow = 2) +
+  facet_wrap(~ dep_val, nrow = 2) +
   scale_x_log10(breaks = n_sequence, labels = scales::comma) +
   scale_y_log10() +
   labs(
