@@ -4,6 +4,9 @@ source("winter2016/marg_dep_mods_funcs.R")
 
 source("code/models/copula_markov/load_models.r")
 
+source("code/models/copula_markov/egpd_gumbel.r")
+
+
 library(bayesplot)
 
 winter_hourly_gust <- data$fg10[data$season == "Winter"]
@@ -123,10 +126,9 @@ plot(res_df$threshold, res_df$lambda_mean,
 #######
 # Frequentist Gumbel + EGPD Power
 ######
-source("code/models/copula_markov/egpd_gumbel.r")
 
 # Initial values from marginal-only fit
-init_marg <- fitegpd(winter_hourly_gust, method = "mle", model = 1)
+init_marg <- egpd::fitegpd(winter_hourly_gust, method = "mle", model = 1)
 
 # Initial theta_vec
 # [log_kappa, log_sigma, xi, log(theta_copula - 1)]
