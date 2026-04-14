@@ -11,7 +11,7 @@ margin_egpd <- list(
   cdf = function(x, param) {
     x_std <- (x - param["mu"]) / param["sigma"]
     u <- evd::pgpd(x_std, shape = param["xi"])
-    margin_egpdd$G_dist(u, param)
+    margin_egpd$G_dist(u, param)
   },
 
   lpdf = function(x, param) {
