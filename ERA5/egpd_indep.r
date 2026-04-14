@@ -6,6 +6,32 @@ winter_hourly_gust <- data$fg10[data$season == "Winter"]
 # Increasing curve suggest weibull domain of attraction instead of frechet
 h_hat <- ReIns::Hill(winter_hourly_gust, plot = TRUE)
 
+xi_hill <- h_hat$gamma
+
+k_max <- 150
+
+plot(1:k_max, h_hat$gamma[1:k_max], type = "l")
+
+tol <- 0.04          # tolerance (e.g. 2%)
+window <- 10         # size of stability window
+
+k_star <- NA
+
+for (k in 1:(k_max - window)) {
+  segment <- xi_hill[k:(k + window)]
+  
+  # relative variation in the window
+  rel_range <- (max(segment) - min(segment)) / mean(segment)
+  
+  if (rel_range < tol) {
+    k_star <- k
+    break
+  }
+}
+
+k_star
+xi_hill[k_star]
+
 ########
 ## EGPD NAVEAU
 ########
