@@ -7,7 +7,7 @@ source("code/models/margins/egpd.r")
 source("code/models/copulas/gumbel.r")
 source("code/models/copulas/joe.r")
 source("code/models/copula_markov/egpd_gumbel.r")
-source("winter2016/marg_dep_mods_funcs.R")
+source("code/models/gpd_gumbel.r")
 
 library(dplyr)
 library(ggplot2)
@@ -379,7 +379,7 @@ summary_results <- results_gumbel %>%
 
 # Create faceted plot by theta and threshold
 # You can choose to focus on one threshold or show all
-selected_threshold <- 0.90  # Choose your preferred threshold
+selected_threshold <- 0.95  # Choose your preferred threshold
 
 plot_data <- summary_results %>%
   filter(threshold == selected_threshold)
@@ -395,14 +395,16 @@ p <- ggplot(plot_data, aes(x = n, y = median_bias, color = model, linetype = mod
     title = sprintf("Bias in Tail Index Estimation (threshold = %.2f)", selected_threshold),
     subtitle = sprintf("True ξ = %.2f", true_tail_index),
     x = "Sample Size (n)",
-    y = "Bias (ξ̂ - ξ)",
+    y = "Median bias",
     color = "Method",
     linetype = "Method"
   ) +
   theme_bw() +
   theme(
-    legend.position = "right",
-    legend.direction = "vertical",
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "top",
+    legend.direction = "horizontal",
     panel.grid.minor = element_blank(),
     strip.background = element_rect(fill = "gray90"),
     axis.text.x = element_text(angle = 45, hjust = 1)
