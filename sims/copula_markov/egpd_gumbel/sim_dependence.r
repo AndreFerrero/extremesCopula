@@ -1,10 +1,11 @@
 # ==============================================================================
 # SIMULATION STUDY: THE IMPACT OF DEPENDENCE AND THRESHOLD SELECTION
 # ==============================================================================
+
 source("code/models/copula_markov/copula_markov_model.r")
 source("code/models/margins/egpd.r")
-source("code/models/margins/frechet.r")
 source("code/models/copulas/gumbel.r")
+source("code/models/copulas/joe.r")
 source("code/models/copula_markov/egpd_gumbel.r")
 source("winter2016/marg_dep_mods_funcs.R")
 
@@ -20,219 +21,143 @@ lag_df <- function(x) {
   return(df)
 }
 
-egpd_sim_model <- make_copula_markov_model(margin_egpd, copula_gumbel, stan_mod = NULL)
-frechet_sim_model <- make_copula_markov_model(margin_frechet, copula_gumbel, stan_mod = NULL)
+egpd_gumbel_sim_model <- make_copula_markov_model(margin_egpd, copula_gumbel, stan_mod = NULL)
+egpd_joe_sim_model <- make_copula_markov_model(margin_egpd, copula_joe, stan_mod = NULL)
 
-true_egpd <- c(mu = 0, kappa = 6, sigma = 1, xi = 0.1)
-true_frechet <- c(scale = 9, shape = 2.5)
-
-
-# 1. Setup True Parameters
-mod <- "Frechet"
-
-if (mod == "EGPD") {
-  sim_model <- egpd_sim_model
-  true_margin <- true_egpd
-  true_tail_index <- true_margin["xi"]
-} else if (mod == "Frechet") {
-  sim_model <- frechet_sim_model
-  true_margin <- true_frechet
-  true_tail_index <- round(1 / true_margin["shape"], 3)
-}
-
-true_theta <- 3.0
-n_sim <- 10000
-
-data <- sim_model$simulate(
-  n = n_sim,
-  copula_param = true_theta,
-  margin_param = true_margin,
-  seed = 123+63
-)$x
-
-hist(data, breaks = 50, main = "Simulated Data", xlab = "Value")
-
-# threshrange.plot(data, nint = 50)
-# quantile(data, seq(0.9, 0.99, by = 0.01))
-
-# ------------------------------------------------------------------------------
-# POINT 1: PROVING THAT IGNORING DEPENDENCE BIASES XI
-# ------------------------------------------------------------------------------
-
-# Fit A: Independent (IID) EGPD Model (Ignoring Copula)
-fit_iid_egpd <- egpd::fitegpd(data, type = 1)
-xi_iid <- fit_iid_egpd$estimate["xi"]
-
-# Fit B: Independent (IID) GPD Model (Standard Threshold Approach)
-u_fix <- quantile(data, 0.98)
-fit_iid_gpd <- extRemes::fevd(data, threshold = u_fix, type = "GP")
-xi_gpd_iid <- fit_iid_gpd$results$par["shape"]
-
-# Fit C: Your Proposition (Joint EGPD + Gumbel)
-data_lag <- lag_df(data)
-
-tau <- cor(data_lag$x, data_lag$x_lag, method = "kendall")
-
-theta_tau <- 1 / (1 - tau)
-theta_tau
-
-# Initial values from marginal-only fit
-init_marg <- egpd::fitegpd(data, method = "mle", model = 1)
-
-# Initial theta_vec
-# [log_kappa, log_sigma, xi, log(theta_copula - 1)]
-start_params <- c(
-  log(init_marg$estimate["kappa"]),
-  log(init_marg$estimate["sigma"]),
-  init_marg$estimate["xi"],
-  log(theta_tau - 1)
-)
-
-fit_res_egpd_gumbel <- fit_egpd_gumbel(data, init_par = start_params)
-
-res_kappa <- exp(fit_res_egpd_gumbel$par[1])
-res_sigma <- exp(fit_res_egpd_gumbel$par[2])
-res_xi <- fit_res_egpd_gumbel$par[3]
-res_theta <- exp(fit_res_egpd_gumbel$par[4]) + 1
-
-cat("--- XI Bias Analysis ---\n")
-cat("True Tail Index: ", true_tail_index, "\n")
-cat("GUMBEL EGPD:  ", res_xi, "\n")
-cat("IID EGPD:     ", xi_iid, "\n")
-cat("IID GPD:      ", xi_gpd_iid, "\n")
-
-# ------------------------------------------------------------------------------
-# POINT 2: PROVING STABILITY (THRESHOLD-FREE vs. CENSORED)
-# ------------------------------------------------------------------------------
-
-# We will vary a "cut-off" point from 85% to 98%
-u_sequence <- seq(0.9, 0.98, by = 0.01)
-stab_results <- data.frame(prob = u_sequence, xi_censored = NA, xi_egpd = NA)
-
-
-for (i in seq_along(u_sequence)) {
-  u_val <- quantile(data, u_sequence[i])
-
-  # 1. Censored Gumbel-GPD (Winter2016 style)
-  fit_cens <- FitGpd(dat = lag_df(data), u = u_val, optim.type = 2)
-  stab_results$xi_censored[i] <- fit_cens$par[3]
-
-  # 2. Threshold-Free EGPD-Gumbel
-  stab_results$xi_egpd[i] <- res_xi
-}
-
-stab_results |>
-  tidyr::pivot_longer(cols = c(xi_censored, xi_egpd), names_to = "model", values_to = "xi") |>
-  ggplot(aes(x = prob, y = xi, color = model)) +
-  geom_line() +
-  geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
-  labs(
-    title = "Threshold Stability Comparison",
-    subtitle = paste("True tail index =", true_tail_index, "| N =", n_sim),
-    x = "Threshold Quantile (u)",
-    y = "Estimated xi",
-    color = "Model"
-  ) +
-  theme_minimal()
-
+sim_model <- egpd_gumbel_sim_model
 
 # ==============================================================================
 # Monte Carlo Simulation: Sensitivity to Dependence Strength (Theta)
 # ==============================================================================
+library(parallel)
+library(doParallel)
 
+set.seed(123)
+
+# Setup
 theta_sequence <- c(1.5, 3.0, 4.5, 6.0)
 n_sim <- 3500
-mc_it <- 50 # Number of MC trials per theta (increase for final results)
+mc_it <- 50
+r_dc <- 1
+threshold_probs <- c(0.9, 0.95, 0.96, 0.98)
+true_margin_sim <- c(mu = 0, kappa = 6, sigma = 1, xi = 0.1)
+true_tail_index <- true_margin_sim["xi"]
 
-# Storage for results
-mc_results <- data.frame()
+# Parallel setup
+n_cores <- min(detectCores() - 1, length(theta_sequence))
+cl <- makeCluster(n_cores)
+registerDoParallel(cl)
 
-for (th in theta_sequence) {
-  message(paste("Running simulations for Theta =", th))
+# Export necessary objects to cluster
+clusterExport(cl, c(
+  "n_sim", "mc_it", "r_dc", "threshold_probs", "true_margin_sim", "simulate_copula_markov",
+  "sim_model", "lag_df", "fit_egpd_gumbel", "FitGpd", "sample_bisection",
+  "margin_egpd", "copula_gumbel", "copula_joe"
+))
+
+# Parallel execution
+mc_results <- foreach(
+  th = theta_sequence,
+  .combine = rbind,
+  .packages = c("extRemes", "egpd")
+) %dopar% {
+  results <- vector("list", mc_it)
+
+  cat(sprintf(
+    "[%s] Starting theta = %.1f (%d iterations)\n",
+    Sys.time(), th, mc_it
+  ))
 
   for (i in 1:mc_it) {
-    # 1. Simulate data with current theta
+    # Simulate
     sim_data <- sim_model$simulate(
       n = n_sim,
       copula_param = th,
-      margin_param = true_margin
-    )$x
-
-    # 2. Fit IID Model (The "Naïve" approach)
-    fit_egpd_iid <- egpd::fitegpd(sim_data, type = 1)
-    xi_egpd_iid <- fit_egpd_iid$estimate["xi"]
-
-    u_fix <- quantile(sim_data, 0.90)
-    fit_gpd_iid <- extRemes::fevd(sim_data, threshold = u_fix, type = "GP")
-    xi_gpd_iid <- fit_gpd_iid$results$par["shape"]
-
-    # 3. Fit Gumbel dependence +  EGPD
-    data_lag <- lag_df(sim_data)
-
-    # Initialise theta
-    tau <- cor(data_lag$x, data_lag$x_lag, method = "kendall")
-
-    theta_tau <- 1 / (1 - tau)
-    theta_tau
-
-    # Initial theta_vec
-    # [log_kappa, log_sigma, xi, log(theta_copula - 1)]
-    start_params <- c(
-      log(fit_egpd_iid$estimate["kappa"]),
-      log(fit_egpd_iid$estimate["sigma"]),
-      fit_egpd_iid$estimate["xi"],
-      log(theta_tau - 1)
+      margin_param = true_margin_sim
     )
 
-    fit_res_egpd_gumbel <- fit_egpd_gumbel(sim_data, init_par = start_params)
-    xi_egpd_gumbel <- fit_res_egpd_gumbel$par[3]
+    # Store data in lag_df form
+    data_lag <- lag_df(sim_data$x)
 
-    # Fit Censored GPD + Gumbel (Winter2016 style)
-    fit_gpd_gumbel_cens <- FitGpd(dat = data_lag, u = u_fix, optim.type = 2)
-    xi_gpd_gumbel_cens <- fit_gpd_gumbel_cens$par[3]
+    # Fit threshold indep models
+    fit_egpd_iid <- egpd::fitegpd(sim_data$x, type = 1)
 
-    # 4. Store
-    mc_results <- rbind(mc_results, data.frame(
-      theta = th,
-      iteration = i,
-      model = "IID_EGPD",
-      xi_hat = xi_egpd_iid
-    ))
-    mc_results <- rbind(mc_results, data.frame(
-      theta = th,
-      iteration = i,
-      model = "IID_GPD",
-      xi_hat = xi_gpd_iid
-    ))
-    mc_results <- rbind(mc_results, data.frame(
-      theta = th,
-      iteration = i,
-      model = "Censored_GPD_GUMBEL",
-      xi_hat = xi_gpd_gumbel_cens
-    ))
-    mc_results <- rbind(mc_results, data.frame(
-      theta = th,
-      iteration = i,
-      model = "EGPD_GUMBEL",
-      xi_hat = xi_egpd_gumbel
-    ))
+    fit_egpd_dep <- fit_egpd_gumbel(sim_data$x, method = "Nelder-Mead")
+
+
+    # Compute thresholds
+    thresholds <- quantile(sim_data$x, probs = threshold_probs)
+
+    thresh_results <- list()
+
+    for (p in seq_along(threshold_probs)) {
+      u_fix <- thresholds[p]
+
+      fit_gpd_iid <- extRemes::fevd(sim_data$x, threshold = u_fix, type = "GP")
+
+      sim_dcruns <- extRemes::decluster(sim_data$x, threshold = u_fix, r = r_dc)
+
+      fit_gpd_dcruns <- extRemes::fevd(sim_dcruns, threshold = u_fix, type = "GP")
+
+      fit_gpd_gumbel_cens <- FitGpd(dat = data_lag, u = u_fix, optim.type = 2)
+
+      # --- store results for THIS threshold ---
+      thresh_results[[p]] <- data.frame(
+        theta = th,
+        iteration = i,
+        threshold = threshold_probs[p],
+        model = c(
+          "IID_EGPD", "IID_GPD", "GPD_DCRUNS",
+          "Censored_GPD_GUMBEL", "EGPD_GUMBEL"
+        ),
+        xi_hat = c(
+          fit_egpd_iid$estimate["xi"], # same across thresholds
+          fit_gpd_iid$results$par["shape"],
+          fit_gpd_dcruns$results$par["shape"],
+          fit_gpd_gumbel_cens$par[3],
+          fit_egpd_dep$estimate["xi"] # same across thresholds
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+
+    # Combine all thresholds for this iteration
+    results[[i]] <- do.call(rbind, thresh_results)
   }
+
+  do.call(rbind, results)
 }
 
-# save(mc_results, file = "sims/copula_markov/egpd_gumbel/res/frechet_dependence_alpha3.RData")
-load("sims/copula_markov/egpd_gumbel/res/egpd_mc_dependence_xi01.RData")
+stopCluster(cl)
+
+save(mc_results, file = "sims/copula_markov/egpd_gumbel/res/egpd_xi01_complete_multiplethresh.RData")
+load("sims/copula_markov/egpd_gumbel/res/egpd_xi01_complete_multiplethresh.RData")
+
 
 # ==============================================================================
 # VISUALIZATION OF THE "DEPENDENCE DEGRADATION"
 # ==============================================================================
-library(ggplot2)
+plot_title <- "Effect of Dependence Strength on Tail Index (xi) Estimation - Gumbel EGPD Simulation"
+plot_subtitle <- paste(
+  "True tail index =", true_tail_index,
+  "| N =", n_sim,
+  "| MC Iterations =", mc_it,
+  "| Declustering run length =", r_dc
+)
+
+mc_results$model_type <- ifelse(
+  mc_results$model %in% c("IID_GPD", "GPD_DCRUNS", "Censored_GPD_GUMBEL"),
+  "Threshold-dependent",
+  "Threshold-independent"
+)
 
 ggplot(mc_results, aes(x = as.factor(theta), y = xi_hat, fill = model)) +
   geom_boxplot() +
+  facet_wrap(~threshold) +
   geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
   labs(
-    title = "Effect of Dependence Strength on Tail Index (xi) Estimation",
-    subtitle = paste("True tail index =", true_tail_index, "| N =", n_sim, "| MC Iterations =", mc_it),
+    title = plot_title,
+    subtitle = plot_subtitle,
     x = "Dependence Strength (Theta)",
     y = "Estimated xi"
   ) +
@@ -242,10 +167,11 @@ mc_results |>
   filter(model != "Censored_GPD_GUMBEL") |>
   ggplot(aes(x = as.factor(theta), y = xi_hat, fill = model)) +
   geom_boxplot() +
+  facet_wrap(~threshold) +
   geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
   labs(
-    title = "Effect of Dependence Strength on Tail Index (xi) Estimation",
-    subtitle = paste("True tail index =", true_tail_index, "| N =", n_sim, "| MC Iterations =", mc_it),
+    title = plot_title,
+    subtitle = plot_subtitle,
     x = "Dependence Strength (Theta)",
     y = "Estimated xi"
   ) +
@@ -255,10 +181,11 @@ mc_results |>
   filter(model == "Censored_GPD_GUMBEL" | model == "EGPD_GUMBEL") |>
   ggplot(aes(x = as.factor(theta), y = xi_hat, fill = model)) +
   geom_boxplot() +
+  facet_wrap(~threshold) +
   geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
   labs(
-    title = "Effect of Dependence Strength on Tail Index (xi) Estimation",
-    subtitle = paste("True tail index =", true_tail_index, "| N =", n_sim, "| MC Iterations =", mc_it),
+    title = plot_title,
+    subtitle = plot_subtitle,
     x = "Dependence Strength (Theta)",
     y = "Estimated xi"
   ) +
@@ -268,7 +195,7 @@ mc_results |>
 # Calculate median and MAD for each theta-model combination
 
 summary_stats <- mc_results |>
-  group_by(theta, model) |>
+  group_by(theta, model, threshold) |>
   summarise(
     median_xi = median(xi_hat),
     mad_xi = mad(xi_hat),
@@ -276,6 +203,25 @@ summary_stats <- mc_results |>
     sd_xi = sd(xi_hat),
     .groups = "drop"
   )
+
+ggplot(summary_stats, aes(x = as.factor(theta), y = mean_xi, color = model)) +
+  geom_point(size = 3, position = position_dodge(width = 0.7)) +
+  geom_errorbar(
+    aes(ymin = mean_xi - sd_xi, ymax = mean_xi + sd_xi),
+    width = 0.2,
+    linewidth = 0.6,
+    position = position_dodge(width = 0.7)
+  ) +
+  facet_wrap(~threshold) +
+  geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
+  labs(
+    title = plot_title,
+    subtitle = plot_subtitle,
+    x = "Dependence Strength (Theta)",
+    y = "Estimated xi (Mean)",
+    color = "Model"
+  ) +
+  theme_minimal()
 
 ggplot(summary_stats, aes(x = as.factor(theta), y = median_xi, color = model)) +
   geom_point(size = 3, position = position_dodge(width = 0.7)) +
@@ -285,10 +231,11 @@ ggplot(summary_stats, aes(x = as.factor(theta), y = median_xi, color = model)) +
     linewidth = 0.6,
     position = position_dodge(width = 0.7)
   ) +
+  facet_wrap(~threshold) +
   geom_hline(yintercept = true_tail_index, linetype = "dashed", color = "red") +
   labs(
-    title = "Effect of Dependence Strength on Tail Index (xi) Estimation",
-    subtitle = paste("True tail index =", true_tail_index, "| N =", n_sim, "| MC Iterations =", mc_it, "| Error bars: MAD"),
+    title = plot_title,
+    subtitle = plot_subtitle,
     x = "Dependence Strength (Theta)",
     y = "Estimated xi (Median)",
     color = "Model"
@@ -296,101 +243,190 @@ ggplot(summary_stats, aes(x = as.factor(theta), y = median_xi, color = model)) +
   theme_minimal()
 
 
-# ==============================================================================
-# SIMPLE DIAGNOSTIC SIMULATION: EGPD + GUMBEL ONLY
-# ==============================================================================
+### Bigger simulation study for consistency
 
 set.seed(123)
 
-n_sim <- 2000
-mc_it <- 100
-theta_true <- 3.0 # fix dependence
-results <- data.frame()
+# Setup
+theta_sequence <- c(1.5, 3.0, 4.5, 6.0)
+n_sequence <- c(500, 1000, 2000, 4000, 8000)  # Different sample sizes
+mc_it <- 50  # Iterations per (theta, n) combination
+r_dc <- 1
+threshold_probs <- c(0.9, 0.95)
+true_margin_sim <- c(mu = 0, kappa = 6, sigma = 1, xi = 0.1)
+true_tail_index <- true_margin_sim["xi"]
 
-for (i in 1:mc_it) {
-  # --- 1. Simulate data
-  sim_data <- sim_model$simulate(
-    n = n_sim,
-    copula_param = theta_true,
-    margin_param = true_margin
-  )$x
+# Parallel setup - only parallelize over theta
+n_cores <- min(detectCores() - 1, length(theta_sequence))
+cl <- makeCluster(n_cores)
+registerDoParallel(cl)
 
-  data_lag <- lag_df(sim_data)
+# Export necessary objects to cluster
+clusterExport(cl, c(
+  "n_sequence", "mc_it", "r_dc", "threshold_probs", "true_margin_sim", 
+  "true_tail_index", "simulate_copula_markov",
+  "sim_model", "lag_df", "fit_egpd_gumbel", "FitGpd", "sample_bisection",
+  "margin_egpd", "copula_gumbel", "copula_joe"
+))
 
-  # --- 2. Initialisation
-  fit_init <- egpd::fitegpd(sim_data, type = 1)
-
-  tau <- cor(data_lag$x, data_lag$x_lag, method = "kendall")
-  theta_tau <- 1 / (1 - tau)
-
-  start_params <- c(
-    log(fit_init$estimate["kappa"]),
-    log(fit_init$estimate["sigma"]),
-    fit_init$estimate["xi"],
-    log(theta_tau - 1)
-  )
-
-  # --- 3. Fit model (with error handling)
-  fit <- tryCatch(
-    fit_egpd_gumbel(sim_data, init_par = start_params),
-    error = function(e) NULL
-  )
-
-  if (is.null(fit)) {
-    results <- rbind(results, data.frame(
-      iter = i,
-      kappa = NA,
-      sigma = NA,
-      xi = NA,
-      theta = NA,
-      converged = 0
+# Parallel execution over theta
+consistency_results <- foreach(
+  th = theta_sequence,
+  .combine = rbind,
+  .packages = c("extRemes", "egpd")
+) %dopar% {
+  
+  theta_results <- list()
+  
+  # Loop over sample sizes (sequential within each theta)
+  for (n_idx in seq_along(n_sequence)) {
+    n_sim <- n_sequence[n_idx]
+    
+    cat(sprintf(
+      "[%s] theta = %.1f, n = %d (%d iterations)\n",
+      Sys.time(), th, n_sim, mc_it
     ))
-    next
+    
+    # Loop over Monte Carlo iterations
+    for (i in 1:mc_it) {
+      
+      # Simulate
+      sim_data <- sim_model$simulate(
+        n = n_sim,
+        copula_param = th,
+        margin_param = true_margin_sim
+      )
+      
+      # Store data in lag_df form
+      data_lag <- lag_df(sim_data$x)
+      
+      # Fit threshold independent models (same across thresholds)
+      fit_egpd_iid <- egpd::fitegpd(sim_data$x, type = 1)
+      fit_egpd_dep <- fit_egpd_gumbel(sim_data$x, method = "Nelder-Mead")
+      
+      # Compute thresholds
+      thresholds <- quantile(sim_data$x, probs = threshold_probs)
+      
+      # Store results for each threshold
+      thresh_results <- list()
+      for (p in seq_along(threshold_probs)) {
+        u_fix <- thresholds[p]
+        
+        # Fit threshold-dependent models
+        fit_gpd_iid <- extRemes::fevd(sim_data$x, threshold = u_fix, type = "GP")
+        sim_dcruns <- extRemes::decluster(sim_data$x, threshold = u_fix, r = r_dc)
+        fit_gpd_dcruns <- extRemes::fevd(sim_dcruns, threshold = u_fix, type = "GP")
+        fit_gpd_gumbel_cens <- FitGpd(dat = data_lag, u = u_fix, optim.type = 2)
+        
+        # Store results for this threshold
+        thresh_results[[p]] <- data.frame(
+          theta = th,
+          n = n_sim,
+          iteration = i,
+          threshold = threshold_probs[p],
+          model = c(
+            "IID_EGPD", "IID_GPD", "GPD_DCRUNS",
+            "Censored_GPD_GUMBEL", "EGPD_GUMBEL"
+          ),
+          xi_hat = c(
+            fit_egpd_iid$estimate["xi"],
+            fit_gpd_iid$results$par["shape"],
+            fit_gpd_dcruns$results$par["shape"],
+            fit_gpd_gumbel_cens$par[3],
+            fit_egpd_dep$estimate["xi"]
+          ),
+          stringsAsFactors = FALSE
+        )
+      }
+      
+      # Combine all thresholds for this iteration
+      theta_results[[length(theta_results) + 1]] <- do.call(rbind, thresh_results)
+    }
   }
-
-  # --- 4. Extract parameters
-  kappa_hat <- exp(fit$par[1])
-  sigma_hat <- exp(fit$par[2])
-  xi_hat <- fit$par[3]
-  theta_hat <- exp(fit$par[4]) + 1
-
-  results <- rbind(results, data.frame(
-    iter = i,
-    kappa = kappa_hat,
-    sigma = sigma_hat,
-    xi = xi_hat,
-    theta = theta_hat,
-    converged = 1
-  ))
+  
+  # Combine all results for this theta
+  do.call(rbind, theta_results)
 }
 
-library(ggplot2)
+stopCluster(cl)
 
-results |>
-  tidyr::pivot_longer(cols = c(kappa, sigma, xi, theta)) |>
-  ggplot(aes(x = value)) +
-  geom_histogram() +
-  facet_wrap(~name, scales = "free") +
-  theme_minimal()
+consistency_results$bias <- consistency_results$xi_hat - true_tail_index
 
-true_vals <- data.frame(
-  name = c("kappa", "sigma", "xi", "theta"),
-  truth = c(true_margin["kappa"], true_margin["sigma"], true_tail_index, theta_true)
-)
-
-results |>
-  tidyr::pivot_longer(cols = c(kappa, sigma, xi, theta)) |>
-  ggplot(aes(x = name, y = value)) +
-  geom_boxplot() +
-  geom_hline(data = true_vals, aes(yintercept = truth), color = "red", linetype = "dashed") +
-  theme_minimal()
+save(consistency_results, file = "sims/copula_markov/egpd_gumbel/res/consistency_results_xi01.RData")
 
 
-summary(results)
+# Compute summary statistics (mean bias, sd, RMSE) for each combination
+summary_results <- consistency_results %>%
+  group_by(theta, n, model, threshold) %>%
+  summarise(
+    mean_bias = mean(bias, na.rm = TRUE),
+    sd_bias = sd(bias, na.rm = TRUE),
+    median_bias = median(bias, na.rm = TRUE),
+    mad_bias = mad(bias, na.rm = TRUE),
+    rmse = sqrt(mean(bias^2, na.rm = TRUE)),
+    n_obs = n(),
+    .groups = "drop"
+  )
 
-# Extreme values
-results |>
-  filter(abs(xi) > 1 | theta > 20)
+# Create faceted plot by theta and threshold
+# You can choose to focus on one threshold or show all
+selected_threshold <- 0.95  # Choose your preferred threshold
 
-pairs(results[, c("kappa", "sigma", "xi", "theta")])
+plot_data <- summary_results %>%
+  filter(threshold == selected_threshold)
+
+p <- ggplot(plot_data, aes(x = n, y = median_bias, color = model, linetype = model)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray30") +
+  facet_wrap(~ theta, nrow = 2, 
+             labeller = labeller(theta = function(x) paste("θ =", x))) +
+  scale_x_continuous(trans = "log10", breaks = n_sequence) +
+  labs(
+    title = sprintf("Bias in Tail Index Estimation (threshold = %.2f)", selected_threshold),
+    subtitle = sprintf("True ξ = %.2f", true_tail_index),
+    x = "Sample Size (n)",
+    y = "Bias (ξ̂ - ξ)",
+    color = "Method",
+    linetype = "Method"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "right",
+    legend.direction = "vertical",
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "gray90"),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+print(p)
+
+
+# If you want to verify n^(-α) convergence rate
+p_loglog <- ggplot(plot_data, aes(x = n, y = abs(median_bias), color = model)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  # Add reference lines for different convergence rates
+  geom_abline(intercept = log10(0.5), slope = -0.5, 
+              linetype = "dotted", color = "black", alpha = 0.5) +  # n^(-1/2)
+  geom_abline(intercept = log10(1), slope = -1, 
+              linetype = "dotted", color = "black", alpha = 0.5) +    # n^(-1)
+  annotate("text", x = 1000, y = 0.5/sqrt(1000), label = "n^(-1/2)", 
+           size = 3, hjust = -0.2) +
+  annotate("text", x = 1000, y = 1/1000, label = "n^(-1)", 
+           size = 3, hjust = -0.2) +
+  facet_wrap(~ theta, nrow = 2) +
+  scale_x_log10(breaks = n_sequence, labels = scales::comma) +
+  scale_y_log10() +
+  labs(
+    title = "Convergence Rate Analysis (log-log scale)",
+    x = "Sample Size (n)",
+    y = "|Bias|",
+    color = "Method"
+  ) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+print(p_loglog)
+
 
