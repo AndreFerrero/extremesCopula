@@ -98,13 +98,12 @@ fit_egpd_bernstein_gumbel <- function(x, init_par = NULL, m = 5) {
     exp(opt$par[1]),
     exp(opt$par[2]),
     opt$par[3],
-    theta = exp(opt$par[4 + m]) + 1,
-    w = {
-      alpha_raw <- opt$par[4:(3 + m)]
-      alpha_shifted <- alpha_raw - max(alpha_raw)
-      exp(alpha_shifted) / sum(exp(alpha_shifted))
-    }
+    theta = exp(opt$par[4 + m]) + 1
   )
 
-  return(list(estimate = estimate, opt = opt))
+  alpha_raw <- opt$par[4:(3 + m)]
+  alpha_shifted <- alpha_raw - max(alpha_raw)
+  weights <- exp(alpha_shifted) / sum(exp(alpha_shifted))
+  
+  return(list(estimate = estimate, weights = weights, opt = opt))
 }
