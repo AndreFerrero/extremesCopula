@@ -1,7 +1,5 @@
-# Gumbel Copula Log-Density
-# u, v are the PIT values from the marginal CDF
+# 1. Gumbel Copula Log-Density (Unchanged)
 log_dgumbel_copula <- function(u, v, theta) {
-  # Ensure u, v are in (0, 1)
   u <- pmin(pmax(u, 1e-6), 1 - 1e-6)
   v <- pmin(pmax(v, 1e-6), 1 - 1e-6)
 
@@ -9,157 +7,162 @@ log_dgumbel_copula <- function(u, v, theta) {
   y <- -log(v)
   t <- x^theta + y^theta
 
-  # Archimedean formula for Gumbel
   log_c <- -t^(1 / theta) + (theta - 1) * log(x) + (theta - 1) * log(y) +
     (1 / theta - 2) * log(t) + log(t^(1 / theta) + theta - 1) -
     (log(u) + log(v))
-  return(log_c)
+  log_c
 }
 
-# Parametric EGPD + Gumbel Copula NLL
-# theta_vec: [log_kappa, log_sigma, xi, log_theta_minus_1]
-egpd_gumbel_nll <- function(theta_vec, x) {
-  # 1. Parameter Extraction
-  kappa <- exp(theta_vec[1])
-  sigma <- exp(theta_vec[2])
-  xi <- theta_vec[3]
-  theta_c <- exp(theta_vec[4]) + 1
+# 2. Negative Log-Likelihood
+# par_trans contains transformed parameters for unconstrained optimization:
+# [log(sigma), xi, log(kappa), log(theta - 1)]
+egpd_gumbel_nll <- function(par_trans, x) {
+  
+  # Back-transform for calculation
+  sigma <- exp(par_trans[1])
+  xi    <- par_trans[2]
+  kappa <- exp(par_trans[3])
+  theta <- exp(par_trans[4]) + 1
 
-  # 2. Marginal Density (EGPD Power Type 1)
+  # Safety check for xi/sigma support
+  if (any(1 + xi * x / sigma <= 0)) return(1e20)
+
+  # Marginal density
   log_f <- egpd:::degpd_density(
     x,
     sigma = sigma,
-    xi = xi, kappa = kappa,
-    type = 1, log = TRUE
+    xi = xi,
+    kappa = kappa,
+    type = 1,
+    log = TRUE
   )
-  if (any(1 + xi * x / sigma <= 0)) {
-    return(1e20)
-  }
 
-  # 3. Copula Dependence
-  # U_t = H(x)^kappa
-  x_u <- egpd:::pegpd(x, sigma = sigma, xi = xi, kappa = kappa, type = 1)
-  x_u <- pmin(pmax(x_u, 1e-10), 1 - 1e-10)
+  # PIT values
+  u <- egpd:::pegpd(
+    x,
+    sigma = sigma,
+    xi = xi,
+    kappa = kappa,
+    type = 1
+  )
+  u <- pmin(pmax(u, 1e-10), 1 - 1e-10)
 
   n <- length(x)
-  # log_dgumbel_copula from previous code block
-  log_c <- log_dgumbel_copula(x_u[2:n], x_u[1:(n - 1)], theta_c)
+  # Copula density for the dependency
+  log_c <- log_dgumbel_copula(
+    u[2:n],
+    u[1:(n - 1)],
+    theta
+  )
 
-  total_ll <- sum(log_f) + sum(log_c)
+  ll <- sum(log_f) + sum(log_c)
+  if (!is.finite(ll)) return(1e20)
 
-  if (!is.finite(total_ll)) {
-    return(1e+20)
-  }
-  return(-total_ll)
+  -ll
 }
 
+# 3. Initialization Function
 get_init_egpd_gumbel <- function(x) {
-  # Marginal fit for initialization
-  init_marg <- egpd::fitegpd(x, method = "mle", model = 1)
-
-  # Copula Theta: Use Kendall's Tau between x_t and x_{t-1}
-  # theta = 1 / (1 - tau)
+  # Fit marginal first
+  init <- egpd::fitegpd(x, type = 1, family = "egpd")
+  
+  # Kendall's tau for copula parameter theta
   n <- length(x)
-  tau <- cor(x[1:(n - 1)], x[2:n], method = "kendall", use = "complete.obs")
+  tau <- cor(x[-n], x[-1], method = "kendall", use = "complete.obs")
+  tau <- max(0.01, min(0.9, tau))
+  theta_init <- 1 / (1 - tau)
 
-  # Safety bounds for Tau (Gumbel needs positive dependence)
-  tau_safe <- max(0.01, min(0.99, tau))
-  theta_tau <- 1 / (1 - tau_safe)
-
-  # 5. Construct the 4-parameter vector explicitly
-  # Ensure these are single numeric values, not lists or named vectors
-  # Initial theta_vec
-  # [log_kappa, log_sigma, xi, log(theta_copula - 1)]
-  init_par <- c(
-    log(init_marg$estimate["kappa"]),
-    log(init_marg$estimate["sigma"]),
-    init_marg$estimate["xi"],
-    log(theta_tau - 1)
+  # Return in order: sigma, xi, kappa, theta
+  c(
+    sigma = as.numeric(init$estimate["sigma"]),
+    xi    = as.numeric(init$estimate["xi"]),
+    kappa = as.numeric(init$estimate["kappa"]),
+    theta = theta_init
   )
-
-  # Double check length and NAs
-  if (length(init_par) != 4 || any(is.na(init_par))) {
-    stop("Initialization failed: parameters contain NAs or wrong length.")
-  }
-
-  return(init_par)
 }
 
-fit_egpd_gumbel <- function(x, init_par = NULL, method = "L-BFGS-B") {
-  # Automatically initialize if no parameters provided
-  # Provide Parameters in Log scale
-  
+# 4. Fitting Function
+fit_egpd_gumbel <- function(x, init_par = NULL, method = "L-BFGS-B", hessian = TRUE) {
+
   if (is.null(init_par)) {
     init_par <- get_init_egpd_gumbel(x)
-  } else {
-    # Validate provided init_par
-    if (length(init_par) != 4 || any(is.na(init_par))) {
-      stop("Provided init_par must be a numeric vector of length 4 with no NAs.")
-    }
   }
 
+  # Transform parameters for optim (to ensure sigma > 0, kappa > 0, theta > 1)
+  # Order: 1:sigma, 2:xi, 3:kappa, 4:theta
+  init_trans <- c(
+    log(init_par[1]),      # sigma
+    init_par[2],           # xi
+    log(init_par[3]),      # kappa
+    log(init_par[4] - 1)   # theta
+  )
+
   opt <- optim(
-    par = init_par,
+    par = init_trans,
     fn = egpd_gumbel_nll,
     x = x,
     method = method,
+    hessian = hessian,
     control = list(maxit = 10000)
   )
 
+  # ---- Back-transform estimates ----
+  theta_hat <- opt$par
+  
+  final_sigma <- exp(theta_hat[1])
+  final_xi    <- theta_hat[2]
+  final_kappa <- exp(theta_hat[3])
+  final_theta <- exp(theta_hat[4]) + 1
+
   estimate <- c(
-    exp(opt$par[1]),
-    exp(opt$par[2]),
-    opt$par[3],
-    theta = exp(opt$par[4]) + 1
+    sigma = final_sigma,
+    xi    = final_xi,
+    kappa = final_kappa,
+    theta = final_theta
   )
 
-  return(list(estimate = estimate, opt = opt))
-}
+  # ---- Variance estimation (Delta Method) ----
+  se <- rep(NA_real_, 4)
+  names(se) <- names(estimate)
+  V_par <- NULL
 
-#' Calculate Marginal and Conditional PIT values
-#' @param data The observed vector x
-#' @param theta_vec The estimated parameter vector [log_kappa, log_sigma, xi, log_theta_minus_1]
-#' @param h_dist_fn The h-function (conditional CDF) from your copula object
-get_pit_values <- function(x, theta_vec, h_dist_fn) {
-  # 1. Parameter Extraction
-  kappa <- exp(theta_vec[1])
-  sigma <- exp(theta_vec[2])
-  xi <- theta_vec[3]
-  theta_c <- exp(theta_vec[4]) + 1
+  if (hessian && !is.null(opt$hessian)) {
+    V_theta <- tryCatch(solve(opt$hessian), error = function(e) NULL)
 
-  # 2. Marginal PIT (u_t)
-  u <- egpd:::pegpd(x, sigma = sigma, xi = xi, kappa = kappa, type = 1)
-  u <- pmin(pmax(u, 1e-10), 1 - 1e-10) # Numerical safety
+    if (!is.null(V_theta)) {
+      # Jacobian Matrix (Partial derivatives of back-transformations)
+      # d(exp(h1)) = sigma
+      # d(h2)      = 1
+      # d(exp(h3)) = kappa
+      # d(exp(h4)+1) = theta - 1
+      J <- diag(c(
+        final_sigma,
+        1,
+        final_kappa,
+        final_theta - 1
+      ))
 
-  # 3. Conditional PIT (w_t)
-  n <- length(u)
-  w <- h_dist_fn(u[2:n], u[1:(n - 1)], theta_c)
+      V_par <- J %*% V_theta %*% t(J)
+      rownames(V_par) <- colnames(V_par) <- names(estimate)
+      se <- sqrt(pmax(diag(V_par), 0))
+    }
+  }
 
-  return(list(u = u, w = w))
-}
+  loglik <- -opt$value
+  n <- length(x)
+  npar <- length(estimate)
 
-#' Generate Side-by-Side QQ-plots
-#' @param pit_list A list containing 'u' and 'w' from get_pit_values
-plot_diag_plots <- function(pit_list) {
-  u <- pit_list$u
-  w <- pit_list$w
-
-  old_par <- par(mfrow = c(1, 2))
-  on.exit(par(old_par)) # Restores plot settings after function finishes
-
-  # Plot A: Marginal Check
-  plot(stats::ppoints(length(u)), sort(u),
-    main = "Marginal QQ-plot (EGPD)",
-    xlab = "Theoretical Uniform", ylab = "Empirical u_t",
-    pch = 20, col = "grey60"
-  )
-  abline(0, 1, col = "firebrick", lwd = 2)
-
-  # Plot B: Conditional Check
-  plot(stats::ppoints(length(w)), sort(w),
-    main = "Conditional QQ-plot (Gumbel)",
-    xlab = "Theoretical Uniform", ylab = "Empirical w_t",
-    pch = 20, col = "royalblue"
-  )
-  abline(0, 1, col = "firebrick", lwd = 2)
+  return(structure(list(
+    estimate = estimate,
+    sd = se,
+    vcov = V_par,
+    loglik = loglik,
+    aic = -2 * loglik + 2 * npar,
+    bic = -2 * loglik + log(n) * npar,
+    n = n,
+    npar = npar,
+    convergence = opt$convergence,
+    optim = opt,
+    call = match.call()
+  ), class = "fit_egpd_gumbel"))
 }
