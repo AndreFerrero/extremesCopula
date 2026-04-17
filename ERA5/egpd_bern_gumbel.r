@@ -5,24 +5,16 @@ library(egpd)
 winter_hourly_gust <- data$fg10[data$season == "Winter"]
 
 # Suppose your data is 'winter_hourly_gust' and m 
-m_degree <- 5
-fit_copula_egpd_bern <- fitegpd_berstein_gumbel(winter_hourly_gust, m = m_degree)
+m_degree <- 10
+fit_copula_egpd_bern <- fit_egpd_bernstein_gumbel(winter_hourly_gust, m = m_degree)
 
 # Extract results
-res_kappa <- exp(fit_copula_egpd_bern$par[1])
-res_sigma <- exp(fit_copula_egpd_bern$par[2])
-res_xi    <- fit_copula_egpd_bern$par[3]
-res_theta <- exp(fit_copula_egpd_bern$par[4 + m_degree]) + 1
-
-alpha_raw <- fit_copula_egpd_bern$par[4:(3 + m_degree)]
-
-# We subtract the max for numerical stability (prevents overflow)
-alpha_shifted <- alpha_raw - max(alpha_raw)
-res_weights <- exp(alpha_shifted) / sum(exp(alpha_shifted))
+margin_fit <- fit_copula_egpd_bern$estimate
+bern_w <- fit_copula_egpd_bern$weights
 
 # Generate x sequence for the smooth red line
 x_seq <- seq(min(winter_hourly_gust), max(winter_hourly_gust), length.out = 500)
-y_fit <- egpd:::.bernstein_full_density(x_seq, res_sigma, res_xi, res_kappa, res_weights, m_degree)
+y_fit <- egpd:::.bernstein_full_density(x_seq, margin_fit["sigma"], margin_fit["xi"], margin_fit["kappa"], bern_w, m_degree)
 
 # Plot
 hist(winter_hourly_gust, breaks = 40, prob = TRUE, col = "lightblue", border = "darkgray",

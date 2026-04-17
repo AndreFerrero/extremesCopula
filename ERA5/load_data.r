@@ -10,7 +10,6 @@ data <- data %>%
   filter(!is.na(fg10)) %>%
   mutate(valid_time = as.POSIXct(valid_time, tz = "UTC"))
 
-# Keep last 10 years
 cutoff_date <- as.POSIXct("2025-01-01 00:00:00", tz = "UTC")
 
 data <- data %>%
