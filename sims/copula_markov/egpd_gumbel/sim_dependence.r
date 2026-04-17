@@ -11,6 +11,8 @@ source("code/models/gpd_gumbel.r")
 
 library(dplyr)
 library(ggplot2)
+library(parallel)
+library(doParallel)
 
 lag_df <- function(x) {
   x_lag <- dplyr::lag(x)
@@ -29,9 +31,6 @@ sim_model <- egpd_gumbel_sim_model
 # ==============================================================================
 # Monte Carlo Simulation: Sensitivity to Dependence Strength (Theta)
 # ==============================================================================
-library(parallel)
-library(doParallel)
-
 set.seed(123)
 
 # Setup
@@ -191,9 +190,6 @@ mc_results |>
   ) +
   theme_minimal()
 
-
-# Calculate median and MAD for each theta-model combination
-
 summary_stats <- mc_results |>
   group_by(theta, model, threshold) |>
   summarise(
@@ -255,17 +251,6 @@ gen_gumbel_markov <- function(n, dep_param, xi, kappa=6, sigma=1) {
     margin_param = c(mu=0, kappa=kappa, sigma=sigma, xi=xi)
   )
   return(sim_data$x)
-}
-
-# 2. Raw AR(1) Pareto (Linear Misspecification)
-gen_ar1_pareto <- function(n, dep_param, xi) {
-  burn_in <- 500
-  total_n <- n + burn_in
-  innov <- (1 - runif(total_n))^(-xi)
-  x <- numeric(total_n)
-  x[1] <- innov[1]
-  for(t in 2:total_n) x[t] <- dep_param * x[t-1] + innov[t]
-  return(x[(burn_in + 1):total_n])
 }
 
 run_study <- function(generator_fn, 
