@@ -8,29 +8,34 @@ h_hat <- ReIns::Hill(winter_hourly_gust, plot = TRUE)
 
 xi_hill <- h_hat$gamma
 
-k_max <- 150
+genh_hat <- ReIns::genHill(winter_hourly_gust,
+     gamma = xi_hill,
+     plot = TRUE
+)
 
-plot(1:k_max, h_hat$gamma[1:k_max], type = "l")
+xi_genhill <- genh_hat$gamma
 
-tol <- 0.04          # tolerance (e.g. 2%)
-window <- 10         # size of stability window
+k_max <- 900
 
+plot(1:k_max, genh_hat$gamma[1:k_max], type = "l")
+
+tol <- 0.05 # tolerance (e.g. 2%)
 k_star <- NA
 
-for (k in 1:(k_max - window)) {
-  segment <- xi_hill[k:(k + window)]
-  
-  # relative variation in the window
-  rel_range <- (max(segment) - min(segment)) / mean(segment)
-  
-  if (rel_range < tol) {
-    k_star <- k
-    break
-  }
+for (k in 1:k_max) {
+
+     # relative variation in the window
+     rel_range <- abs((xi_genhill[k+1] - xi_genhill[k])/xi_genhill[k])
+
+     if (rel_range < tol) {
+          k_star <- k
+          break
+     }
 }
 
 k_star
-xi_hill[k_star]
+xi_genhill[k_star]
+
 
 ########
 ## EGPD NAVEAU
@@ -60,13 +65,18 @@ fit_egpd <- egpd::fitegpd(
 summary(fit_egpd)
 plot(fit_egpd)
 
+egpd_bic <- fit_egpd$bic
+egpd_aic <- fit_egpd$aic
+
 bern_m <- c(3, 4, 6, 8, 12)
 aic_compare <- numeric(length(bern_m))
 bic_compare <- numeric(length(bern_m))
 
-for(i_m in seq_along(bern_m)) {
-     fit <- fitegpd(winter_hourly_gust, type = 1,
-     method = "bernstein", bernstein.m = bern_m[i_m])
+for (i_m in seq_along(bern_m)) {
+     fit <- egpd::fitegpd(winter_hourly_gust,
+          type = 1,
+          method = "bernstein", bernstein.m = bern_m[i_m]
+     )
      aic_compare[i_m] <- AIC(fit)
      bic_compare[i_m] <- BIC(fit)
 }
@@ -78,7 +88,7 @@ fit_egpd_bern <- egpd::fitegpd(
      type = 1,
      family = "egpd",
      method = "bernstein",
-     bernstein.m = bern_m[which.min(bic_compare)]
+     bernstein.m = 10
 )
 
 summary(fit_egpd_bern)
@@ -97,7 +107,7 @@ th_plot <- threshrange.plot(winter_hourly_gust, nint = 50)
 head(th_plot)
 
 
-u <- quantile(winter_hourly_gust, 0.90)
+u <- quantile(winter_hourly_gust, 0.96)
 fit_gpd <- extRemes::fevd(winter_hourly_gust, threshold = u, type = "GP", method = "MLE")
 
 fit_gpd$results$par
@@ -106,7 +116,7 @@ sum(winter_hourly_gust > u)
 
 # try declustering to see if removing dependence changes the estimates
 
-dc_runs <- extRemes::decluster(winter_hourly_gust, threshold = u)
+dc_runs <- extRemes::decluster(winter_hourly_gust, threshold = u, r = 3)
 dc_runs
 
 dc_intervals <- extRemes::decluster(winter_hourly_gust,
@@ -115,8 +125,10 @@ dc_intervals <- extRemes::decluster(winter_hourly_gust,
 )
 dc_intervals
 
-fit_dc <- fevd(dc_runs, threshold = u, type = "GP")
+fit_dc <- extRemes::fevd(dc_runs, threshold = u, type = "GP")
 fit_dc$results$par
 
-fit_dc_int <- fevd(dc_intervals, threshold = u, type = "GP")
+fit_dc_int <- extRemes::fevd(dc_intervals, threshold = u, type = "GP")
 fit_dc_int$results$par
+
+extRemes::threshrange.plot(dc_runs)
