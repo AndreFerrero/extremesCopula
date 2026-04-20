@@ -1,4 +1,5 @@
 source("code/models/copula_markov/simulate.r")
+library(ReIns)
 
 genHillk <- function(x, k_max = length(x)) {
     hill <- ReIns::Hill(x)
@@ -13,10 +14,8 @@ genHillk <- function(x, k_max = length(x)) {
 genhill <- genHillk(egpd_data, k_max = 1000)
 genhill$gamma[1000]
 
-genhill_gumbel <- genHillk(egpd_gumbel_data$x, k_max = 1000)
-genhill_gumbel$gamma[2000]
-
-# Sample Data (Using your wind gust context)
+genhill_gumbel <- genHillk(egpd_gumbel_data$x, k_max = 2000)
+genhill_gumbel$gamma[1500]
 
 paretoqq <- function(x) {
     # Step 1: Sort the data in descending order
