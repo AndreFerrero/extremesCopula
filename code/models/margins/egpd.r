@@ -1,6 +1,6 @@
 margin_egpd <- list(
   name = "egpd",
-  name_param = c("mu", "kappa", "sigma", "xi"),
+  name_param = c("mu", "sigma", "xi", "kappa"),
   
   G_dist = function(u, param) u^param["kappa"],
   G_inv  = function(u, param) u^(1 / param["kappa"]),
