@@ -74,10 +74,10 @@ get_init_egpd_gumbel <- function(x) {
 
   # Return in order: sigma, xi, kappa, theta
   c(
-    sigma = as.numeric(init$estimate["sigma"]),
-    xi    = as.numeric(init$estimate["xi"]),
-    kappa = as.numeric(init$estimate["kappa"]),
-    theta = theta_init
+    as.numeric(init$estimate["sigma"]),
+    as.numeric(init$estimate["xi"]),
+    as.numeric(init$estimate["kappa"]),
+    theta_init
   )
 }
 
