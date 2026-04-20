@@ -116,43 +116,6 @@ functions {
     return pow(K, (1.0 / theta) - 1.0) * pow(1.0 - v, theta - 1.0)
            * (1.0 - pow(1.0 - u, theta));
   }
-  
-  // Function to calculate the theoretical Extremal Index via Tail Chain simulation
-  // n_sim: number of simulations to run per posterior draw (e.g., 1000)
-  // n_steps: steps into the future for the product to decay (e.g., 200)
-  real gumbel_extremal_index_rng(real theta, int n_sim, int n_steps) {
-    // Independence case
-    if (theta <= 1.001) 
-      return 1.0;
-    
-    real alpha = 1.0 / theta;
-    real count_escaped = 0;
-    
-    for (s in 1 : n_sim) {
-      real U = uniform_rng(0, 1);
-      real max_prod = 0;
-      real current_prod = 1.0;
-      
-      for (i in 1 : n_steps) {
-        real V = uniform_rng(0, 1);
-        // Inverse CDF for A from Beirlant (2004) Example 10.21
-        real A = pow(pow(V, 1.0 / (alpha - 1.0)) - 1.0, -alpha);
-        
-        current_prod *= A;
-        if (current_prod > max_prod) 
-          max_prod = current_prod;
-        
-        // Numerical optimization: if product is effectively 0, it won't come back
-        if (current_prod < 1e-9) 
-          break;
-      }
-      
-      if (max_prod <= U) 
-        count_escaped += 1;
-    }
-    
-    return count_escaped / n_sim;
-  }
 }
 data {
   int<lower=2> T;

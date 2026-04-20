@@ -87,7 +87,7 @@ save(
   file = "sims/copula_markov/egpd_gumbel/res/se_verify.Rdata"
 )
 
-
+load("sims/copula_markov/egpd_gumbel/res/se_verify.Rdata")
 ## =========================================================
 ## 4. Diagnostic function
 ## =========================================================
@@ -184,11 +184,6 @@ cat("\n=== IID model ===\n")
 print(res_iid$comparison)
 print("Coverage:")
 print(res_iid$coverage)
-
-
-print("Bias: Gumbel and IID")
-print(res_gumbel$bias)
-print(res_iid$bias)
 
 print("SD from Hessian within Monte Carlo SE?")
 print(res_gumbel$within_mc_error)

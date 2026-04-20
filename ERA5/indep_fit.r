@@ -4,7 +4,7 @@ winter_hourly_gust <- data$fg10[data$season == "Winter"]
 
 ## Hill estimator
 # Increasing curve suggest weibull domain of attraction instead of frechet
-h_hat <- ReIns::Hill(winter_hourly_gust, plot = TRUE)
+h_hat <- ReIns::Hill(winter_hourly_gust)
 
 xi_hill <- h_hat$gamma
 
