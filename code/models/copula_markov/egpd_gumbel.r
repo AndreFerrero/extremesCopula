@@ -1,168 +1,123 @@
-# 1. Gumbel Copula Log-Density (Unchanged)
+library(egpd)
+library(copula)
+library(numDeriv)
+
+# --- Internal Utility: Gumbel Log-Density ---
+# log_dgumbel_copula <- function(u, v, theta) {
+#   u <- pmin(pmax(u, 1e-6), 1 - 1e-6)
+#   v <- pmin(pmax(v, 1e-6), 1 - 1e-6)
+#   x <- -log(u); y <- -log(v)
+#   t <- x^theta + y^theta
+#   log_c <- -t^(1 / theta) + (theta - 1) * log(x) + (theta - 1) * log(y) +
+#     (1 / theta - 2) * log(t) + log(t^(1 / theta) + theta - 1) - (log(u) + log(v))
+#   return(log_c)
+# }
+
 log_dgumbel_copula <- function(u, v, theta) {
-  u <- pmin(pmax(u, 1e-6), 1 - 1e-6)
-  v <- pmin(pmax(v, 1e-6), 1 - 1e-6)
+  # Numerical safety boundaries
+  u <- pmin(pmax(u, 1e-10), 1 - 1e-10)
+  v <- pmin(pmax(v, 1e-10), 1 - 1e-10)
 
-  x <- -log(u)
-  y <- -log(v)
-  t <- x^theta + y^theta
+  log_density <- dCopula(cbind(u, v), gumbelCopula(theta), log = TRUE)
 
-  log_c <- -t^(1 / theta) + (theta - 1) * log(x) + (theta - 1) * log(y) +
-    (1 / theta - 2) * log(t) + log(t^(1 / theta) + theta - 1) -
-    (log(u) + log(v))
-  log_c
+  return(log_density)
 }
 
-# 2. Negative Log-Likelihood
-# par_trans contains transformed parameters for unconstrained optimization:
-# [log(sigma), xi, log(kappa), log(theta - 1)]
+
+# --- Internal Utility: Joint NLL ---
 egpd_gumbel_nll <- function(par_trans, x) {
-  
-  # Back-transform for calculation
   sigma <- exp(par_trans[1])
-  xi    <- par_trans[2]
+  xi <- par_trans[2]
   kappa <- exp(par_trans[3])
   theta <- exp(par_trans[4]) + 1
 
-  # Safety check for xi/sigma support
-  if (any(1 + xi * x / sigma <= 0)) return(1e20)
+  if (any(1 + xi * x / sigma <= 0)) {
+    return(1e20)
+  }
 
-  # Marginal density
-  log_f <- egpd:::degpd_density(
-    x,
-    sigma = sigma,
-    xi = xi,
-    kappa = kappa,
-    type = 1,
-    log = TRUE
-  )
-
-  # PIT values
-  u <- egpd:::pegpd(
-    x,
-    sigma = sigma,
-    xi = xi,
-    kappa = kappa,
-    type = 1
-  )
-  u <- pmin(pmax(u, 1e-10), 1 - 1e-10)
+  log_f <- egpd:::degpd_density(x, sigma = sigma, xi = xi, kappa = kappa, type = 1, log = TRUE)
+  u <- pmin(pmax(egpd:::pegpd(x, sigma = sigma, xi = xi, kappa = kappa, type = 1), 1e-10), 1 - 1e-10)
 
   n <- length(x)
-  # Copula density for the dependency
-  log_c <- log_dgumbel_copula(
-    u[2:n],
-    u[1:(n - 1)],
-    theta
-  )
+  log_c <- log_dgumbel_copula(u[2:n], u[1:(n - 1)], theta)
 
   ll <- sum(log_f) + sum(log_c)
-  if (!is.finite(ll)) return(1e20)
-
+  if (!is.finite(ll)) {
+    return(1e20)
+  }
   -ll
 }
 
-# 3. Initialization Function
-get_init_egpd_gumbel <- function(x) {
-  # Fit marginal first
-  init <- egpd::fitegpd(x, type = 1, family = "egpd")
-  
-  # Kendall's tau for copula parameter theta
+# --- THE UNIFIED FITTING FUNCTION ---
+fit_egpd_gumbel_copula <- function(x, method = c("mle", "iterative", "ifm"),
+                            init_par = NULL, hessian = TRUE) {
+  method <- match.arg(method)
   n <- length(x)
-  tau <- cor(x[-n], x[-1], method = "kendall", use = "complete.obs")
-  tau <- max(0.01, min(0.9, tau))
-  theta_init <- 1 / (1 - tau)
 
-  # Return in order: sigma, xi, kappa, theta
-  c(
-    as.numeric(init$estimate["sigma"]),
-    as.numeric(init$estimate["xi"]),
-    as.numeric(init$estimate["kappa"]),
-    theta_init
-  )
-}
-
-# 4. Fitting Function
-fit_egpd_gumbel <- function(x, init_par = NULL, method = "L-BFGS-B", hessian = TRUE) {
-
+  # 1. Initialization
   if (is.null(init_par)) {
-    init_par <- get_init_egpd_gumbel(x)
+    init_marg <- egpd::fitegpd(x, type = 1, family = "egpd")$estimate
+    tau <- cor(x[-n], x[-1], method = "kendall", use = "complete.obs")
+    theta_init <- 1 / (1 - max(0.01, min(0.8, tau)))
+    init_par <- c(init_marg, theta = theta_init)
   }
 
-  # Transform parameters for optim (to ensure sigma > 0, kappa > 0, theta > 1)
-  # Order: 1:sigma, 2:xi, 3:kappa, 4:theta
-  init_trans <- c(
-    log(init_par[1]),      # sigma
-    init_par[2],           # xi
-    log(init_par[3]),      # kappa
-    log(init_par[4] - 1)   # theta
+  # 2. Optimization Paths
+  if (method == "mle") {
+    init_trans <- c(log(init_par[1]), init_par[2], log(init_par[3]), log(init_par[4] - 1))
+    opt <- optim(init_trans, egpd_gumbel_nll, x = x, method = "Nelder-Mead", control = list(maxit = 2000))
+    final_trans <- opt$par
+    conv <- opt$convergence
+  } else if (method == "iterative") {
+    cur_t <- c(log(init_par[1]), init_par[2], log(init_par[3]), log(init_par[4] - 1))
+    for (i in 1:50) {
+      # Step A: Margins (Fix theta)
+      opt_m <- optim(cur_t[1:3], function(p) egpd_gumbel_nll(c(p, cur_t[4]), x), method = "BFGS")
+      # Step B: Copula (Fix margins)
+      opt_c <- optim(cur_t[4], function(p) egpd_gumbel_nll(c(opt_m$par, p), x), method = "BFGS")
+      new_t <- c(opt_m$par, opt_c$par)
+      if (sum((new_t - cur_t)^2) < 1e-6) break
+      cur_t <- new_t
+    }
+    final_trans <- cur_t
+    conv <- 0
+  } else if (method == "ifm") {
+    # Stage 1: IID Margins
+    fit_m <- egpd::fitegpd(x, type = 1, family = "egpd")
+    m_p <- fit_m$estimate
+    # Stage 2: Copula only
+    u <- egpd:::pegpd(x, sigma = m_p[1], xi = m_p[2], kappa = m_p[3], type = 1)
+    u_pairs <- cbind(u[-n], u[-1])
+    fit_c <- fitCopula(gumbelCopula(dim = 2), pobs(u_pairs), method = "ml")
+    final_trans <- c(log(m_p[1]), m_p[2], log(m_p[3]), theta = log(fit_c@estimate - 1))
+    conv <- 0
+  }
+
+  # 3. Back-transform and Results
+  est <- c(
+    exp(final_trans[1]), final_trans[2],
+    exp(final_trans[3]), exp(final_trans[4]) + 1
   )
 
-  opt <- optim(
-    par = init_trans,
-    fn = egpd_gumbel_nll,
-    x = x,
-    method = method,
-    hessian = hessian,
-    control = list(maxit = 10000)
-  )
+  loglik <- -egpd_gumbel_nll(final_trans, x)
 
-  # ---- Back-transform estimates ----
-  theta_hat <- opt$par
-  
-  final_sigma <- exp(theta_hat[1])
-  final_xi    <- theta_hat[2]
-  final_kappa <- exp(theta_hat[3])
-  final_theta <- exp(theta_hat[4]) + 1
-
-  estimate <- c(
-    sigma = final_sigma,
-    xi    = final_xi,
-    kappa = final_kappa,
-    theta = final_theta
-  )
-
-  # ---- Variance estimation (Delta Method) ----
-  se <- rep(NA_real_, 4)
-  names(se) <- names(estimate)
-  V_par <- NULL
-
-  if (hessian && !is.null(opt$hessian)) {
-    V_theta <- tryCatch(solve(opt$hessian), error = function(e) NULL)
-
-    if (!is.null(V_theta)) {
-      # Jacobian Matrix (Partial derivatives of back-transformations)
-      # d(exp(h1)) = sigma
-      # d(h2)      = 1
-      # d(exp(h3)) = kappa
-      # d(exp(h4)+1) = theta - 1
-      J <- diag(c(
-        final_sigma,
-        1,
-        final_kappa,
-        final_theta - 1
-      ))
-
-      V_par <- J %*% V_theta %*% t(J)
-      rownames(V_par) <- colnames(V_par) <- names(estimate)
-      se <- sqrt(pmax(diag(V_par), 0))
+  # Standard Errors via Hessian of the joint likelihood at the solution
+  se <- rep(NA, 4)
+  vcov_mat <- NULL
+  if (hessian) {
+    h <- tryCatch(numDeriv::hessian(function(p) egpd_gumbel_nll(p, x), final_trans), error = function(e) NULL)
+    if (!is.null(h)) {
+      v_t <- tryCatch(solve(h), error = function(e) NULL)
+      if (!is.null(v_t)) {
+        jac <- diag(c(est[1], 1, est[3], est[4] - 1))
+        vcov_mat <- jac %*% v_t %*% t(jac)
+        se <- sqrt(pmax(diag(vcov_mat), 0))
+      }
     }
   }
 
-  loglik <- -opt$value
-  n <- length(x)
-  npar <- length(estimate)
-
-  return(structure(list(
-    estimate = estimate,
-    sd = se,
-    vcov = V_par,
-    loglik = loglik,
-    aic = -2 * loglik + 2 * npar,
-    bic = -2 * loglik + log(n) * npar,
-    n = n,
-    npar = npar,
-    convergence = opt$convergence,
-    optim = opt,
-    call = match.call()
-  ), class = "fit_egpd_gumbel"))
+  structure(list(
+    estimate = est, sd = se, vcov = vcov_mat, loglik = loglik,
+    aic = -2 * loglik + 8, method = method, n = n
+  ), class = "fit_egpd_copula")
 }

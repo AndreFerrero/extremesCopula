@@ -5,10 +5,13 @@ source("code/models/gpd_gumbel.r")
 source("code/models/copula_markov/load_models.r")
 
 source("code/models/copula_markov/egpd_gumbel.r")
+source("code/models/copula_markov/egpd_hr.r")
+source("code/models/copula_markov/egpd_tev.r")
 
 source("code/models/copula_markov/egpd_gumbel_diag.r")
 
 winter_hourly_gust <- data$fg10[data$season == "Winter"]
+spring_hourly_gust <- data$fg10[data$season == "Spring"]
 
 lag_df <- function(x) {
   x_lag <- dplyr::lag(x)
@@ -20,6 +23,7 @@ lag_df <- function(x) {
 }
 
 winter_lag <- lag_df(winter_hourly_gust)
+spring_lag <- lag_df(spring_hourly_gust)
 
 tau <- cor(winter_lag$x, winter_lag$x_lag, method = "kendall")
 
@@ -51,17 +55,72 @@ sig.u
 xi
 lambda.u
 
-#######
-# Frequentist Gumbel + EGPD Power
-######
+### =========================
+### EGPD - Gumbel Copula
+### =========================
+egpd_gumbel_fit <- fit_egpd_gumbel_copula(winter_hourly_gust, method = "mle")
 
-egpd_gumbel_fit <- fit_egpd_gumbel(winter_hourly_gust)
-egpd_gumbel_fit$estimate
-egpd_gumbel_bic <- egpd_gumbel_fit$bic
-egpd_gumbel_aic <- egpd_gumbel_fit$aic
+cat("\n--- EGPD Gumbel Copula ---\n")
+cat("Estimates:\n"); print(egpd_gumbel_fit$estimate)
+cat("AIC:", egpd_gumbel_fit$aic, "\n")
 
-wind_pit <- get_pit_values(winter_hourly_gust, egpd_gumbel_fit$estimate, copula_gumbel$h_dist)
+# Density plot
+plot_density(
+  winter_hourly_gust,
+  egpd_gumbel_fit$estimate,
+  title_cop = "EGPD - Gumbel",
+  bins = 40
+)
 
-plot_diag_plots(wind_pit)
 
-plot_density(winter_hourly_gust, egpd_gumbel_fit$estimate, bins = 40)
+### =========================
+### EGPD - Hüsler–Reiss Copula
+### =========================
+egpd_hr_fit <- fit_egpd_hr_copula(winter_hourly_gust)
+
+cat("\n--- EGPD Hüsler–Reiss Copula ---\n")
+cat("Estimates:\n"); print(egpd_hr_fit$estimate)
+cat("AIC:", egpd_hr_fit$aic, "\n")
+
+plot_density(
+  winter_hourly_gust,
+  egpd_hr_fit$estimate,
+  title_cop = "EGPD - HR",
+  bins = 40
+)
+
+
+### =========================
+### EGPD - tEV Copula
+### =========================
+egpd_tev_fit <- fit_egpd_tev_copula(winter_hourly_gust)
+
+cat("\n--- EGPD tEV Copula ---\n")
+cat("Estimates:\n"); print(egpd_tev_fit$estimate)
+cat("AIC:", egpd_tev_fit$aic, "\n")
+
+plot_density(
+  winter_hourly_gust,
+  egpd_tev_fit$estimate,
+  title_cop = "EGPD - tEV",
+  bins = 40
+)
+
+m_degree <- 6
+bern_egpd_tev_fit <- fit_bernstein_tev(winter_hourly_gust, m = m_degree)
+cat("\n--- bernstein EGPD tEV Copula ---\n")
+cat("Estimates:\n"); print(bern_egpd_tev_fit$estimate)
+cat("AIC:", bern_egpd_tev_fit$aic, "\n")
+
+# Extract results
+margin_fit <- bern_egpd_tev_fit$estimate
+bern_w <- bern_egpd_tev_fit$weights
+
+# Generate x sequence for the smooth red line
+x_seq <- seq(min(winter_hourly_gust), max(winter_hourly_gust), length.out = 500)
+y_fit <- egpd:::.bernstein_full_density(x_seq, margin_fit["sigma"], margin_fit["xi"], margin_fit["kappa"], bern_w, m_degree)
+
+# Plot
+hist(winter_hourly_gust, breaks = 40, prob = TRUE, col = "lightblue", border = "darkgray",
+     main = "Histogram and Fitted Density", xlab = "x")
+lines(x_seq, y_fit, col = "red", lwd = 2)

@@ -18,9 +18,9 @@ log_dgumbel_copula <- function(u, v, theta) {
 
 bernstein_copula_nll <- function(theta_vec, x, m) {
   # 1. Parameter Extraction (un-transforming to ensure positivity)
-  kappa <- exp(theta_vec[1])
-  sigma <- exp(theta_vec[2])
-  xi <- theta_vec[3]
+  sigma <- exp(theta_vec[1])
+  xi <- theta_vec[2]
+  kappa <- exp(theta_vec[3])
   # Bernstein log-weights (softmax approach as used in the package)
   alpha <- theta_vec[4:(3 + m)]
   alpha_shifted <- alpha - max(alpha)
@@ -63,9 +63,9 @@ get_init_bern_egpd_gumbel <- function(x, m) {
   theta_tau <- 1 / (1 - tau_safe)
 
   init_par <- c(
-    log(init_marg$estimate["kappa"]),
     log(init_marg$estimate["sigma"]),
     init_marg$estimate["xi"],
+    log(init_marg$estimate["kappa"]),
     rep(0, m),
     log(theta_tau - 1)
   )
@@ -95,9 +95,9 @@ fit_egpd_bernstein_gumbel <- function(x, init_par = NULL, m = 5) {
   )
 
   estimate <- c(
-    exp(opt$par[1]),
     exp(opt$par[2]),
     opt$par[3],
+    exp(opt$par[1]),
     theta = exp(opt$par[4 + m]) + 1
   )
 

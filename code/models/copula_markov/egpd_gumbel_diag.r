@@ -1,9 +1,10 @@
-plot_density <- function(x, margin_est, bins = NULL) {
-  kappa <- margin_est[1]
-  sigma <- margin_est[2]
-  xi <- margin_est[3]
+plot_density <- function(x, margin_est, title_cop = NULL, bins = NULL) {
+  sigma <- margin_est[1]
+  xi <- margin_est[2]
+  kappa <- margin_est[3]
 
-  hist(x, freq = FALSE, breaks = bins, main = "EGPD Gumbel Margin Fit")
+
+  hist(x, freq = FALSE, breaks = bins, main = title_cop)
 
   # Create a grid for smooth curve
   x_grid <- seq(min(x), max(x), length.out = 200)
@@ -25,9 +26,9 @@ plot_density <- function(x, margin_est, bins = NULL) {
 #' @param h_dist_fn The h-function (conditional CDF) from your copula object
 get_pit_values <- function(x, theta_vec, h_dist_fn) {
   # 1. Parameter Extraction
-  kappa <- theta_vec[1]
-  sigma <- theta_vec[2]
-  xi <- theta_vec[3]
+  sigma <- theta_vec[1]
+  xi <- theta_vec[2]
+  kappa <- theta_vec[3]
   theta_c <- theta_vec[4]
 
   # 2. Marginal PIT (u_t)
