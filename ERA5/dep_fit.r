@@ -37,6 +37,12 @@ plot(chi, show = c("Chi" = TRUE, "ChiBar" = TRUE))
 par(mfrow = c(1, 1))
 
 
+
+## Bias corrected Hill
+source("code/dep_hill.r")
+
+dep_hill <- plot_unbiased_evi_supremum(winter_hourly_gust, k_range = 1:3000)
+median(dep_hill$unbiased[900:1100])
 ###
 # GUMBEL + GPD - Censored likelihood - Winter2016 implementation
 ###

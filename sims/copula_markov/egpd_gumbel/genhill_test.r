@@ -17,6 +17,10 @@ genhill$gamma[1000]
 genhill_gumbel <- genHillk(egpd_gumbel_data$x, k_max = 2000)
 genhill_gumbel$gamma[1500]
 
+
+uxi <- plot_unbiased_evi_supremum(egpd_gumbel_data$x, k_range = 1:1000)
+median(uxi$unbiased[200:1000])
+
 paretoqq <- function(x) {
     # Step 1: Sort the data in descending order
     x_sorted <- sort(x, decreasing = TRUE)
