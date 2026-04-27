@@ -8,15 +8,15 @@ egpd_gumbel_model <- make_copula_markov_model(margin_egpd, copula_gumbel, stan_m
 egpd_joe_model <- make_copula_markov_model(margin_egpd, copula_joe, stan_mod = NULL)
 
 
-margin_param <- c(mu = 0, kappa = 2, sigma = 1, xi = 0.1)
-copula_param <- 5
-n <- 5000
+margin_param <- c(mu = 0, kappa = 3, sigma = 1, xi = 0.1)
+copula_param <- 2
+n <- 1000
 
 egpd_gumbel_data <- egpd_gumbel_model$simulate(
     n = n,
     margin_param = margin_param,
     copula_param = copula_param,
-    seed = 123
+    seed = 46
 )
 
 egpd_data <- egpd::regpd(
@@ -26,15 +26,9 @@ egpd_data <- egpd::regpd(
     xi = margin_param["xi"]
 )
 
-egpd_joe_data <- egpd_joe_model$simulate(
-    n = n,
-    margin_param = margin_param,
-    copula_param = copula_param,
-    seed = NULL
-)
-
-
-test_joe <- fit_egpd_joe(egpd_joe_data$x, method = "Nelder-Mead")
-test_joe$estimate
-
-get_init_egpd_joe(egpd_joe_data$x)
+# egpd_joe_data <- egpd_joe_model$simulate(
+#     n = n,
+#     margin_param = margin_param,
+#     copula_param = copula_param,
+#     seed = NULL
+# )
