@@ -35,5 +35,8 @@ meetings_log/**
 # -----------------------------
 # Logs / temporary files
 # -----------------------------
-*.log
-latex/build/
+*.bbl
+*.nav
+*.snm
+*.gz
+
