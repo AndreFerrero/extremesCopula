@@ -30,17 +30,22 @@
 \title{Dependence Modelling of Extremes}
 
 \author{
-  \textbf{Andrea Ferrero} \\[0.3cm]
-  \footnotesize Supervised by: \\
-  \small Gwladys Toulemonde, Nicolas Meyer, Klaus Herrmann
+  \textbf{Andrea Ferrero}$^{1}$\\[0.2cm]
+  \small Supervised by: Gwladys Toulemonde$^{1}$, Nicolas Meyer$^{1}$, Klaus Herrmann$^{2}$
 }
 
 \institute{
-  University of Montpellier \\ 
-  Lemon Team Inria
+  $^{1}$ \textit{University of Montpellier, Lemon Team Inria} \\
+  $^{2}$ \textit{University of Sherbrooke}
 }
 
 \date{}
+
+\titlegraphic{
+  \includegraphics[height=1cm]{logo_um.png}
+  \hspace{0.5cm}
+  \includegraphics[height=1cm]{logo_imag.png}
+}
 
 \begin{document}
 
@@ -53,22 +58,25 @@
 
 \begin{frame}{GEV: The Limit Distribution of Maxima}
 
-  Assume $X_1, \dots, X_n$ are \alert{i.i.d.} random variables from a distribution $F$. Let $M_n = \max(X_1, \dots, X_n)$. 
+  \begin{block}<1->{}
+    Assume $X_1, \dots, X_n$ are \alert{i.i.d.} random variables from a distribution $F$. Let $M_n = \max(X_1, \dots, X_n)$. 
   
-  If there exist sequences $a_n > 0$ and $b_n$ such that:
-  \[
-  P\left( \frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi(x)
-  \]
-  then $G_\xi$ is a \alert{Generalized Extreme Value (GEV)} distribution. We say that $F$ is in the \textbf{maximum domain of attraction} (MDA) of $G_\xi$.
+    If there exist sequences $a_n > 0$ and $b_n$ such that:
+    \[
+    P\left( \frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi(x)
+    \]
+    then $G_\xi$ is a \alert{Generalized Extreme Value (GEV)} distribution. We say that $F$ is in the \textbf{maximum domain of attraction} (MDA) of $G_\xi$.
+  \end{block}
 
-  \vspace{0.3cm}
-  The \textbf{shape parameter} $\xi$ (tail index) determines the tail behavior:
+  \begin{block}<2->{}
+  The \textbf{shape parameter} $\xi$ (tail index) defines the margin tail behavior:
   
   \begin{itemize}
     \item \textbf{$\xi > 0$:} \textbf{Fréchet} (Heavy-tailed, e.g., Pareto, Cauchy)
     \item \textbf{$\xi = 0$:} \textbf{Gumbel} (Exponential-like, e.g., Normal, Gamma)
     \item \textbf{$\xi < 0$:} \textbf{Weibull} (Bounded upper tail, e.g., Uniform, Beta)
   \end{itemize}
+  \end{block}
   
 \end{frame}
 
@@ -83,9 +91,8 @@
     where $H_{\xi, \sigma}$ is the \alert{Generalized Pareto Distribution (GPD)}:
     \[
     H_{\xi, \sigma}(y) = 1 - \left( 1 + \xi \frac{y}{\sigma} \right)^{-1/\xi}, \quad y > 0
-    \]
+    \] \pause
 
-    \vspace{0.2cm}
     \begin{itemize}
         \item \textbf{Consistency:} The shape parameter $\xi$ is \textbf{identical} to the one found in the GEV limit.
         \item \textbf{The Catch:} Choosing $u$ involves a \alert{bias-variance trade-off} (too low $\to$ bias; too high $\to$ high variance).
@@ -93,13 +100,12 @@
 \end{frame}
 
 \begin{frame}{The Hill Estimator}
-    A semi-parametric approach for the tail index \alert{$\xi > 0$}, assuming a regularly varying tail: $\bar{F}(x) = x^{-1/\xi} L(x)$.
+    A semi-parametric approach for the tail index \alert{$\xi > 0$}, assuming a regularly varying tail: $\bar{F}(x) = x^{-1/\xi} L(x)$. \pause
 
-    \vspace{0.2cm}
     Given order statistics $X_{(1)} \ge X_{(2)} \ge \dots \ge X_{(n)}$, the estimator uses the $k$ largest observations:
     \[
     \hat{\xi}_H(k) = \frac{1}{k} \sum_{i=1}^{k} \log \left( \frac{X_{(i)}}{X_{(k+1)}} \right)
-    \]
+    \] \pause
 
     \begin{itemize}
         \item \textbf{Trade-off:} Choosing the optimal $k$ is equivalent to the threshold selection problem.
@@ -111,14 +117,14 @@
     The rate of convergence to the power law is governed by the \alert{second-order parameter} $\rho \le 0$. There exists a function $A(t) \to 0$ such that:
     \[
     \lim_{t \to \infty} \frac{\frac{\bar{F}(tx)}{\bar{F}(t)} - x^{-1/\xi}}{A(t)} = x^{-1/\xi} \frac{x^\rho - 1}{\rho}
-    \]
+    \] \pause
 
-    \begin{exampleblock}{Asymptotic Normality with Bias}
+    \begin{block}{Asymptotic Normality with Bias}
         If $\lim_{n \to \infty} \sqrt{k} A(n/k) = \lambda$, the Hill estimator is biased:
         \[
         \sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N\left( \frac{\lambda}{1-\rho}, \xi^2 \right)
         \]
-    \end{exampleblock}
+    \end{block} \pause
 
     \begin{itemize}
         \item \textbf{Bias Correction:} Requires estimating $\rho$.
@@ -129,34 +135,33 @@
 \begin{frame}{Generalized Hill Estimator ($\xi \in \mathbb{R}$)}
 
     \begin{itemize}
-        \item \textbf{Local Hill Statistic:} $H_{j,n} = \frac{1}{j} \sum_{i=1}^{j} \log X_{(i)} - \log X_{(j+1)}$
-        \item \textbf{Empirical Substitute ($UH$):} Under general MDA, the quantity $UH = X_{(j+1)} H_{j,n}$ is regularly varying with index $\xi$.
+        \item \textbf{Local Hill Statistic:} $H_{j,n} = \frac{1}{j} \sum_{i=1}^{j} \log X_{(i)} - \log X_{(j+1)}$ \pause
+        \item \textbf{Empirical Substitute ($UH$):} Under general MDA, the quantity $UH = X_{(j+1)} H_{j,n}$ is regularly varying with index $\xi$. \pause
     \end{itemize}
 
-    \begin{exampleblock}{The Estimator}
+    \begin{block}{The Estimator}
         Estimated as the slope of the generalized quantile plot:
         \[
         \hat{\xi}^H_{k,n} = \frac{1}{k} \sum_{j=1}^{k} \log UH_{j,n} - \log UH_{k+1,n}
         \]
-    \end{exampleblock}
+    \end{block}
 
 \end{frame}
 
 \begin{frame}{Extended GPD: Avoiding Threshold Selection}
-    The idea is to transform the GPD distribution by a suitable distortion function $G(u)$ \cite{naveau2016}.
+    The idea is to transform the GPD distribution by a suitable distortion function $G(u)$ \cite{naveau2016}. \pause
 
-    \begin{exampleblock}{Power Transformation}
+    \begin{block}{Power Transformation}
         For a random variable $X > 0$, the EGPD CDF is:
         \[
         F(x) = \left[ H_{\xi, \sigma}(x) \right]^\kappa
         \]
-        where $H_{\xi, \sigma}(x)$ is the GPD CDF and \alert{$\kappa > 0$}.
-    \end{exampleblock}
+        where $H_{\xi, \sigma}(x)$ is the GPD CDF and \alert{$\kappa > 0$} is a bulk parameter.
+    \end{block} \pause
 
-    \vspace{0.2cm}
     \begin{itemize}
-        \item \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same tail index}.
-        \item \textbf{The Role of $\kappa$:} 
+        \item \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same tail index}. \pause
+        \item \textbf{The Role of $\kappa$:}
         \begin{itemize}
             \item $\kappa = 1$: Recovers the standard GPD.
             \item $\kappa > 1$: Smooths the distribution at the origin.
@@ -182,28 +187,28 @@
 
 \begin{frame}{Distribution of Maxima of Stationary Sequences}
 
-    Assume $\{X_n\} \sim F$ is a stationary sequence satifying $D(u_n)$ with maximum $M_n$. Assume also that for the i.i.d. sequence $\{X^*_n\} \sim F$, the associated maxima $M^*_n$ has GEV limit $G_\xi$. Then, for a constant $0 < \theta \leq 1$,
+    Assume $\{X_n\} \sim F$ is a stationary sequence satifying $D(u_n)$ with maximum $M_n$. Assume also that for the i.i.d. sequence $\{X^*_n\} \sim F$, the associated maxima $M^*_n$ has GEV limit $G_\xi$. \pause Then, for a constant $0 < \theta \leq 1$,
 
     \[
     P \left(\frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi^\theta(x).
-    \]
+    \] \pause
 
     The \alert{extremal index} $\theta$ quantifies the degree of clustering (dependence) of extremes:
     \begin{itemize}
         \item $\theta = 1$: No clustering (i.i.d. case).
         \item $\theta < 1$: Exceedances cluster.
-    \end{itemize}
+    \end{itemize} \pause
 
     \textbf{Note:} There exist dependent sequences with $\theta = 1$.
 \end{frame}
 
 \begin{frame}{Threshold Exceedances and Declustering}
-    Under dependence, threshold exceedances over a threshold $u$ are typically modelled using \alert{runs declustering}:
+    Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{runs declustering}:
 
     \begin{enumerate}
-        \item Identify clusters as the $r$ consecutive exceedances with no interruption.
-        \item Retain only the \alert{maximum} of each cluster.
-        \item Fit the GPD to these cluster maxima (assumed independent).
+        \item Identify clusters as the $r$ consecutive exceedances with no interruption. \pause
+        \item Retain only the \alert{maximum} of each cluster. \pause
+        \item Fit the GPD to these cluster maxima (assumed independent). \pause
     \end{enumerate}
 
     \textbf{Drawbacks:}
@@ -221,14 +226,13 @@
 \section{Copula Markov Models}
 
 \begin{frame}{Copulas: Decoupling Margins from Dependence}
-    A \textbf{Copula} is a multivariate distribution function with uniform marginals on $[0,1]$.
+    A \textbf{Copula} is a multivariate distribution function with uniform marginals on $[0,1]$. \pause
 
     \begin{block}{Sklar's Theorem (Bivariate Case)}
         For a joint distribution $F_{X,Y}$ with continuous marginals $F_X$ and $F_Y$, there exists a unique copula $C$ such that:
         \[ F_{X,Y}(x,y) = C(F_X(x), F_Y(y)) \]
-    \end{block}
+    \end{block} \pause
 
-    \vspace{0.3cm}
     \textbf{Relevance to EVT:}
     \begin{itemize}
         \item We can choose a specialized margin (e.g., \alert{EGPD}) for extremes.
@@ -244,47 +248,44 @@
     \end{block}
 
     % Step 2: The Joint Model (Appears on click 2)
-    \begin{exampleblock}<2->{Joint Model}
+    \begin{block}<2->{Joint Model}
         The joint distribution of any consecutive pair is given by:
         \[ F_{X_{t-1}, X_t}(x, y) = C(F(x), F(y)) \]
         This couples the marginal behavior with the temporal dependence.
-    \end{exampleblock}
-
-    \vspace{0.3cm}
+    \end{block}
 
     % Step 3: The Transition (Appears on click 3)
     \begin{block}<3->{Transition Kernel}
         The transition kernel (conditional CDF) is derived as:
         \[ 
-        P(X_t \le y \mid X_{t-1} = x) = \frac{\partial}{\partial u} \alert{C}(u, F(y)) \Big|_{u=F(x)} 
+        P(X_t \le y \mid X_{t-1} = x) = \frac{\partial}{\partial u} C(u, F(y)) \Big|_{u=F(x)} 
         \]
     \end{block}
 
 \end{frame}
 
 \begin{frame}{Inference Strategies for Copula Models}
-    Estimating model parameters can be approached in two ways:
+    Estimating model parameters is usually done via:
 
-    \begin{block}<1->{1. Inference Functions for Margins (IFM)}
-        A two-step estimator:
-        \begin{enumerate}
-            \item Estimate marginal parameters $\hat{\bm{\theta}}_{m}$ assuming i.i.d. observations.
-            \item Estimate copula parameters $\hat{\bm{\theta}}_{c}$ given the fitted margins $\hat{F} = F_{\hat{\theta_m}}$ by maximising copula log-likelihood.
-        \end{enumerate}
-    \end{block}
+    \begin{overprint}
+        \onslide<1>
+        \begin{block}{1. Inference Functions for Margins (IFM)}
+            A two-step estimator:
+            \begin{enumerate}
+                \item Estimate marginal parameters $\hat{\bm{\theta}}_{m}$ assuming i.i.d. observations.
+                \item Estimate copula parameters $\hat{\bm{\theta}}_{c}$ given the fitted margins $\hat{F} = F_{\hat{\theta_m}}$ by maximising copula log-likelihood.
+            \end{enumerate}
+        \end{block}
 
-    \begin{block}<2->{2. Full Joint Likelihood}
-        Simultaneous estimation by maximizing the complete log-likelihood. For a copula markov model:
-        \[ \ell(\bm{\theta}_{tot}) = \sum_{t=1}^n \log f(x_t; \bm{\theta}_m) + \sum_{t=2}^n \log c(F(x_{t-1}), F(x_t); \bm{\theta}_c) \]
-    \end{block}
+        \onslide<2>
+        \begin{block}{2. Full Joint Likelihood}
+            Simultaneous estimation by maximizing the complete log-likelihood. For a copula markov model:
+            \[ \ell(\bm{\theta}_{tot}) = \sum_{t=1}^n \log f(x_t; \bm{\theta}_m) + \sum_{t=2}^n \log c(F(x_{t-1}), F(x_t); \bm{\theta}_c) \]
+        \end{block}
+    \end{overprint}
 \end{frame}
 
 \begin{frame}{Tail Chains}
-    \begin{itemize}
-        \item How does the chain behave after a high threshold exceedance?
-        \item \textbf{Tail Chains:} Limiting process of a Markov Chain given an extreme start.
-        \item Provides the backbone for understanding why $\xi$ estimation fails under i.i.d. assumptions.
-    \end{itemize}
 \end{frame}
 
 % ==========================================
@@ -325,21 +326,15 @@
 \section{Conclusion}
 
 \begin{frame}{Future Directions}
-  \begin{enumerate}
-    \item Formalize the link between bias ($\xi$) and the extremal index $\theta$.
-    \item Compare EGPD against Dependence-corrected Hill estimators.
-    \item Expand results to scale ($\sigma$) and shape ($\kappa$) parameters of the EGPD.
-  \end{enumerate}
 \end{frame}
 
 
 \begin{frame}[allowframebreaks]{References}
   \footnotesize
-  % Choose your preferred style (plain, alpha, or apalike)
+
   \bibliographystyle{apalike} 
   
-  % This points to your ref.bib file
-  \bibliography{ref.bib} 
+  \bibliography{ref} 
 \end{frame}
 
 \end{document}
