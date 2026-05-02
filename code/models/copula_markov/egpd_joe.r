@@ -77,7 +77,7 @@ get_init_egpd_joe <- function(x) {
 }
 
 # 4. Fitting Function (MLE)
-fit_egpd_joe <- function(x, init_par = NULL, method = "L-BFGS-B", hessian = TRUE) {
+fit_egpd_joe_copula <- function(x, init_par = NULL, optim.method = "L-BFGS-B", hessian = TRUE) {
 
   if (is.null(init_par)) {
     init_par <- get_init_egpd_joe(x)
@@ -96,7 +96,7 @@ fit_egpd_joe <- function(x, init_par = NULL, method = "L-BFGS-B", hessian = TRUE
     par = init_trans,
     fn = egpd_joe_nll,
     x = x,
-    method = method,
+    method = optim.method,
     hessian = hessian,
     control = list(maxit = 10000)
   )

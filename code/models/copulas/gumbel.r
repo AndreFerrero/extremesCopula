@@ -1,4 +1,3 @@
-source("code/packages.R")
 
 copula_gumbel <- list(
 
