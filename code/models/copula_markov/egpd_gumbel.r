@@ -50,7 +50,7 @@ egpd_gumbel_nll <- function(par_trans, x) {
 
 # --- THE UNIFIED FITTING FUNCTION ---
 fit_egpd_gumbel_copula <- function(x, method = c("mle", "iterative", "ifm"),
-                            init_par = NULL, hessian = TRUE) {
+                                   init_par = NULL, hessian = TRUE, optim.method = "Nelder-Mead") {
   method <- match.arg(method)
   n <- length(x)
 
@@ -65,16 +65,16 @@ fit_egpd_gumbel_copula <- function(x, method = c("mle", "iterative", "ifm"),
   # 2. Optimization Paths
   if (method == "mle") {
     init_trans <- c(log(init_par[1]), init_par[2], log(init_par[3]), log(init_par[4] - 1))
-    opt <- optim(init_trans, egpd_gumbel_nll, x = x, method = "Nelder-Mead", control = list(maxit = 2000))
+    opt <- optim(init_trans, egpd_gumbel_nll, x = x, method = optim.method, control = list(maxit = 2000, parscale = c(1, 0.1, 1, 1)))
     final_trans <- opt$par
     conv <- opt$convergence
   } else if (method == "iterative") {
     cur_t <- c(log(init_par[1]), init_par[2], log(init_par[3]), log(init_par[4] - 1))
     for (i in 1:50) {
       # Step A: Margins (Fix theta)
-      opt_m <- optim(cur_t[1:3], function(p) egpd_gumbel_nll(c(p, cur_t[4]), x), method = "BFGS")
+      opt_m <- optim(cur_t[1:3], function(p) egpd_gumbel_nll(c(p, cur_t[4]), x), method = optim.method)
       # Step B: Copula (Fix margins)
-      opt_c <- optim(cur_t[4], function(p) egpd_gumbel_nll(c(opt_m$par, p), x), method = "BFGS")
+      opt_c <- optim(cur_t[4], function(p) egpd_gumbel_nll(c(opt_m$par, p), x), method = optim.method)
       new_t <- c(opt_m$par, opt_c$par)
       if (sum((new_t - cur_t)^2) < 1e-6) break
       cur_t <- new_t
@@ -99,7 +99,7 @@ fit_egpd_gumbel_copula <- function(x, method = c("mle", "iterative", "ifm"),
     exp(final_trans[3]), exp(final_trans[4]) + 1
   )
 
-  loglik <- -egpd_gumbel_nll(final_trans, x)
+  loglik <- - egpd_gumbel_nll(final_trans, x)
 
   # Standard Errors via Hessian of the joint likelihood at the solution
   se <- rep(NA, 4)
