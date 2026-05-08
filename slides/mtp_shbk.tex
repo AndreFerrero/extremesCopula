@@ -27,19 +27,19 @@
 \usepackage{booktabs}
 
 % --- Title ---
-\title{Dependence Modelling of Extremes}
+\title{Copula Markov Chains for Dependent Extremes}
 
 \setbeamertemplate{title page}{
   \centering
 
-
   {\usebeamerfont{title}\inserttitle\par}
+	\vspace{-0.5em}
 
-	\textcolor{DarkBlue}{\rule{0.8\textwidth}{0.5pt}}
+	\textcolor{DarkBlue}{\rule{\textwidth}{0.5pt}}
 	
   {\usebeamerfont{author}\insertauthor\par}
   \vspace{0.3cm}
-	
+
   {\usebeamerfont{institute}\insertinstitute\par}
   \vspace{0.3cm}
 
@@ -271,21 +271,18 @@
     
     % Step 1: The Definition (Always visible)
     \begin{block}{}
-        A stationary first-order Markov chain $\{X_t\}$ is fully defined by its marginal distribution \alert{$F$} and the copula \alert{$C$} of the pair $(X_{t-1}, X_t)$.
+        A stationary first-order Markov chain $\{X_t\}$ is fully defined by its marginal distribution $F$ and the copula $C$ of the pair $(X_{t-1}, X_t)$.
     \end{block}
 
     % Step 2: The Joint Model (Appears on click 2)
-    \begin{block}<2->{Joint Model}
-        The joint distribution of any consecutive pair is given by:
-        \[ F_{X_{t-1}, X_t}(x, y) = C(F(x), F(y)) \]
-        This couples the marginal behavior with the temporal dependence.
+    \begin{block}<2->{Joint Distribution}
+        \[ F_{X_{t-1}, X_t}(x_{t-1}, x_t) = C(F(x_{t-1}), F(x_t)) \]
     \end{block}
 
     % Step 3: The Transition (Appears on click 3)
-    \begin{block}<3->{Transition Kernel}
-        The transition kernel (conditional CDF) is derived as:
+    \begin{block}<3->{Conditional Distribution}
         \[ 
-        P(X_t \le y \mid X_{t-1} = x) = \frac{\partial}{\partial u} C(u, F(y)) \Big|_{u=F(x)} 
+        P(X_t \le x_t \mid X_{t-1} = x) = \frac{\partial}{\partial u} C(u, F(x_t)) \Big|_{u=F(x_{t-1})} 
         \]
     \end{block}
 
@@ -294,24 +291,24 @@
 \begin{frame}
     \begin{figure}
         \centering
-        \includegraphics[width=0.8\textwidth]{figures/egpd_gumbel_hist_ts.png}
+        \includegraphics[width=\textwidth]{figures/egpd_gumbel_hist_ts.png}
     \end{figure}
 \end{frame}
 
 \begin{frame}
     \begin{figure}
         \centering
-        \includegraphics[width=0.8\textwidth]{figures/egpd_gumbel_acf_pacf.png}
+        \includegraphics[width=\textwidth]{figures/egpd_gumbel_acf_pacf.png}
     \end{figure}
 \end{frame}
 
 \begin{frame}
     \centering
-    \only<1>{\includegraphics[width=0.65\textwidth]{figures/egpd_gumbel_lag_plot.png}}
-    \only<2>{\includegraphics[width=0.65\textwidth]{figures/egpd_gumbel_lag_plot_upper_zoom.png}}
-    \only<3>{\includegraphics[width=0.65\textwidth]{figures/lag_upper.png}}
-    \only<4>{\includegraphics[width=0.65\textwidth]{figures/egpd_gumbel_lag_plot_lower_zoom.png}}
-    \only<5>{\includegraphics[width=0.65\textwidth]{figures/lag_lower.png}}
+    \only<1>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot.png}}
+    \only<2>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot_upper_zoom.png}}
+    \only<3>{\includegraphics[width=0.60\textwidth]{figures/lag_upper.png}}
+    \only<4>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot_lower_zoom.png}}
+    \only<5>{\includegraphics[width=0.60\textwidth]{figures/lag_lower.png}}
 \end{frame}
 
 \begin{frame}{Inference Strategies for Copula Models}
