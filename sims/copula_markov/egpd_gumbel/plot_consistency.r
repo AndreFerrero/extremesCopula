@@ -155,7 +155,7 @@ library(dplyr)
 library(ggplot2)
 library(here)
 
-load("sims/copula_markov/egpd_gumbel/res/consistency_lbfgsb_gumbeldata_joe_hill_kappa6_sigma1_xi01.RData")
+load("sims/copula_markov/egpd_gumbel/res/consistency_neldermead_gumbeldata_joe_hill_kn06__kappa6_sigma1_xi01.RData")
 
 
 # Assuming 'results$results' is the output from your simulation function
@@ -181,18 +181,42 @@ plot_consistency(results,
 plot_consistency(results,
   type = "boxplot",
   scale = "raw",
-  target_param = "sigma", target_threshold = 0.95
+  target_param = "xi", target_threshold = 0.95,
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD", "Censored_GPD_GUMBEL", "Hill", "Hill_BC"),
+  auto_zoom = TRUE
 )
 
 plot_consistency(results,
   type = "boxplot",
   scale = "raw",
-  target_param = "kappa", target_threshold = 0.95
+  target_param = "sigma", target_threshold = 0.95,
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL")
 )
 
 plot_consistency(results,
   type = "boxplot",
   scale = "raw",
-  target_param = "theta", target_threshold = 0.95
+  target_param = "kappa", target_threshold = 0.95,
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL")
 )
 
+plot_consistency(results,
+  type = "boxplot",
+  scale = "raw",
+  target_param = "theta", target_threshold = 0.95,
+  models_to_show = c("Censored_GPD_GUMBEL", "EGPD_GUMBEL")
+)
+
+# To see the "Fawcett/Walshaw" style boxplots:
+plot_consistency(results, scale = "raw", type = "boxplot")
+
+# To see your new Convergence Rate analysis:
+plot_consistency(results, scale = "rmse",
+  target_threshold = 0.95,
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD"),
+  log_log = TRUE)
+
+plot_consistency(results, scale = "raw",
+  type = "median",
+  target_threshold = 0.90,
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD"))

@@ -68,6 +68,7 @@ egpd_gumbel_fit <- fit_egpd_gumbel_copula(winter_hourly_gust, method = "mle")
 
 cat("\n--- EGPD Gumbel Copula ---\n")
 cat("Estimates:\n"); print(egpd_gumbel_fit$estimate)
+cat("logLik:", egpd_gumbel_fit$loglik, "\n")
 cat("AIC:", egpd_gumbel_fit$aic, "\n")
 
 # Density plot
