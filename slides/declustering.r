@@ -81,13 +81,9 @@ for(i in seq_along(clusters)){
 # =========================================================
 # Plot
 # =========================================================
+decl_plot <- function(maxima_color = "red"){
 
-png("slides/figures/declustering.png",
-    width = 1200,
-    height = 500,
-    res = 150)
-
-par(mar = c(4,4,1,1))
+par(mar = c(2,4,1,1))
 
 plot(t, x,
      type = "l",
@@ -135,7 +131,7 @@ points(exc,
 points(cluster_max_t,
        cluster_max_x,
        pch = 19,
-       col = "red",
+       col = maxima_color,
        cex = 1.2)
 
 # ---------------------------------------------------------
@@ -156,5 +152,18 @@ text(10,
      labels = expression(u),
      col = "red",
      cex = 1.2)
+}
 
+png("slides/figures/declustering1.png",
+    width = 1200,
+    height = 400,
+    res = 150)
+decl_plot(maxima_color = "grey50")
+dev.off()
+
+png("slides/figures/declustering2.png",
+    width = 1200,
+    height = 400,
+    res = 150)
+decl_plot(maxima_color = "red")
 dev.off()
