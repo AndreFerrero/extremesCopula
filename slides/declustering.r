@@ -87,14 +87,14 @@ png("slides/figures/declustering.png",
     height = 500,
     res = 150)
 
-par(mar = c(4,4,3,1))
+par(mar = c(4,4,1,1))
 
 plot(t, x,
      type = "l",
      lwd = 1.5,
      xlab = "",
      ylab = "Observations",
-     main = "Declustering of Extremes")
+     main = "")
 
 # ---------------------------------------------------------
 # Threshold

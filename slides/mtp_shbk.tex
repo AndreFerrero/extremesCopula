@@ -168,14 +168,11 @@
 \end{frame}
 
 
-\begin{frame}{Bias and Second-Order Conditions}
-    There exists a function $A(t) \to 0$ and $\rho \leq 0$ such that:
-    \[
-    \lim_{t \to \infty} \frac{\frac{\bar{F}(tx)}{\bar{F}(t)} - x^{-1/\xi}}{A(t)} = x^{-1/\xi} \frac{x^\rho - 1}{\rho}
-    \] \pause
+ \begin{frame}{Bias and Second-Order Conditions}
+    Under certain (second order) conditions on the tail of the distribution, Hill's estimator is asymptotically normal but biased:
 
     \begin{block}{Asymptotic Normality with Bias}
-        If $\lim_{n \to \infty} \sqrt{k} A(n/k) = \lambda$, the Hill estimator is biased:
+        For $\rho \leq 0$ and $\lambda$ a finite constant:
         \[
         \sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N\left( \frac{\lambda}{1-\rho}, \frac{1}{\xi^2} \right)
         \]
@@ -272,30 +269,20 @@
 \end{frame}
 
 \begin{frame}{Threshold Exceedances and Declustering}
-    Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{runs declustering}:
+    Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{declustering}:
 
     \begin{enumerate}
-        \item Identify clusters as the $r$ consecutive exceedances with no interruption. \pause
+        \item Identify \alert{clusters} of extremes (\alert{How?}) \pause
         \item Retain only the \alert{maximum} of each cluster. \pause
         \item Fit the GPD to these cluster maxima (assumed independent). \pause
     \end{enumerate}
 
-    \textbf{Drawbacks:}
-
-    \begin{itemize}
-        \item \alert{Data Wastage}.
-        \item \alert{Sensitivity}.
-    \end{itemize}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/declustering.png}
+    \end{figure}
 
 \end{frame}
-
-\begin{frame}{Declustering}
-	\begin{figure}
-		\centering
-		\includegraphics[width=\textwidth]{figures/declustering.png}
-	\end{figure}
-\end{frame}
-
 % ==========================================
 % SECTION 3: COPULA MARKOV MODELS
 % ==========================================
