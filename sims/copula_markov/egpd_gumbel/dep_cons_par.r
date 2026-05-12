@@ -384,7 +384,7 @@ run_consistency_study_parallel <- function(
 
 results <- run_consistency_study_parallel(
   dep_sequence = c(1, 2, 4, 6),
-  n_sequence = c(250, 500, 1000, 2000, 6000, 8000),
+  n_sequence = c(250, 500, 1000, 2000, 4000, 8000),
   mc_iterations = 50,
   true_params = list(kappa = 6, sigma = 1, xi = 0.1),
   threshold_probs = c(0.90, 0.95),
