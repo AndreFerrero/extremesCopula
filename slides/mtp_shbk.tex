@@ -149,14 +149,7 @@
     Given the order statistics $X_{(1)} \ge X_{(2)} \ge \dots \ge X_{(n)}$, the Hill estimator is defined as:
     \[
     \hat{\xi}_H(k) = \frac{1}{k} \sum_{i=1}^{k} \log \left( \frac{X_{(i)}}{X_{(k+1)}} \right)
-    \] \pause
-
-    \begin{block}{Asymptotic Normality}
-			As $n \to \infty$ and $k = \to \infty$ with $k/n \to 0$:
-			\[
-			\sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N \left(0, \frac{1}{\xi^2} \right)
-			\]
-		\end{block}
+    \]
 		
 \end{frame}
 
@@ -168,15 +161,13 @@
 \end{frame}
 
 
- \begin{frame}{Bias and Second-Order Conditions}
+ \begin{frame}{Asymptotic Normality of Hill Estimator}
     Under certain (second order) conditions on the tail of the distribution, Hill's estimator is asymptotically normal but biased:
 
-    \begin{block}{Asymptotic Normality with Bias}
-        For $\rho \leq 0$ and $\lambda$ a finite constant:
         \[
         \sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N\left( \frac{\lambda}{1-\rho}, \frac{1}{\xi^2} \right)
-        \]
-    \end{block} \pause
+        \] with $\rho \leq 0$ and $\lambda$ a finite constant.
+        \pause
 
     \begin{itemize}
         \item \textbf{Bias Correction:} Requires estimating $\rho$.
@@ -201,7 +192,7 @@
 % \end{frame}
 
 \begin{frame}{Extended GPD: Avoiding Threshold Selection}
-    The idea is to transform the GPD distribution by a suitable distortion function $G(u)$ \cite{naveau2016}. \pause
+    The idea is to transform the GPD by a suitable distortion function $G(u)$ \cite{naveau2016}. \pause
 
     \begin{block}{Power Transformation}
         For a random variable $X > 0$, the EGPD CDF is:
@@ -211,14 +202,7 @@
         where $H_{\xi, \sigma}(x)$ is the GPD CDF and \alert{$\kappa > 0$} is a bulk parameter.
     \end{block} \pause
 
-    \begin{itemize}
-        \item \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same tail index}. \pause
-        \item \textbf{The Role of $\kappa$:}
-        \begin{itemize}
-            \item $\kappa = 1$: Recovers the standard GPD.
-            \item $\kappa > 1$: Smooths the distribution at the origin.
-        \end{itemize}
-    \end{itemize}
+    \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same tail index}.
 \end{frame}
 
 \begin{frame}{EGPD vs GPD: bulk change}
@@ -272,14 +256,26 @@
     Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{declustering}:
 
     \begin{enumerate}
-        \item Identify \alert{clusters} of extremes (\alert{How?}) \pause
-        \item Retain only the \alert{maximum} of each cluster. \pause
-        \item Fit the GPD to these cluster maxima (assumed independent). \pause
+        \item<1-> Identify \alert{clusters} of extremes (\alert{How?})
+        \item<2-> Retain only the \alert{maximum} of each cluster.
+        \item<3-> Fit the GPD to these cluster maxima (assumed independent).
     \end{enumerate}
+
+    \vspace{0.3cm}
 
     \begin{figure}
         \centering
-        \includegraphics[width=\textwidth]{figures/declustering.png}
+
+        % Overlay 1
+        \only<1>{
+            \includegraphics[width=\textwidth]{figures/declustering1.png}
+        }
+
+        % Overlays 2 and 3
+        \only<2-3>{
+            \includegraphics[width=\textwidth]{figures/declustering2.png}
+        }
+
     \end{figure}
 
 \end{frame}
@@ -293,7 +289,7 @@
 
     \begin{block}{Sklar's Theorem (Bivariate Case)}
         For a joint distribution $F_{X,Y}$ with continuous marginals $F_X$ and $F_Y$, there exists a unique copula $C$ such that:
-        \[ F_{X,Y}(x,y) = C(F_X(x), F_Y(y)) \]
+        \[ F_{X,Y}(x,y) = C(F_X(x), F_Y(y)) \] and viceversa.
     \end{block} \pause
 
     \textbf{Relevance to EVT:}
@@ -324,21 +320,21 @@
 
 \end{frame}
 
-\begin{frame}
+\begin{frame}{Simulation Example: EGPD - Gumbel}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/egpd_gumbel_hist_ts.png}
     \end{figure}
 \end{frame}
 
-\begin{frame}
+\begin{frame}{Correlation structure}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/egpd_gumbel_acf_pacf.png}
     \end{figure}
 \end{frame}
 
-\begin{frame}
+\begin{frame}{Transition distribution}
     \centering
     \only<1>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot.png}}
     \only<2>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot_upper_zoom.png}}
@@ -376,32 +372,42 @@
 % ==========================================
 \section{Simulation Study}
 
-% \begin{frame}{The "Marginal Trap": Ignoring Dependence}
-%   \begin{columns}
-%     \column{0.5\textwidth}
-%     \includegraphics[width=\textwidth]{bias_plot.png} 
-%     \column{0.5\textwidth}
-%     \textbf{Estimation of $\xi$ assuming i.i.d. (IFM)}
-%     \begin{itemize}
-%         \item \alert{Negative Bias:} At high dependence ($\theta$ small), $\hat{\xi}$ is pushed toward negative values.
-%         \item Heavy tails appear light or bounded.
-%         \item \textbf{Conclusion:} I.I.D. assumption sees clusters as "limited range."
-%     \end{itemize}
-%   \end{columns}
-% \end{frame}
+\begin{frame}{Setup and Methods}
 
-% \begin{frame}{The Cost of Copula Misspecification}
-%   \begin{columns}
-%     \column{0.5\textwidth}
-%     \includegraphics[width=\textwidth]{copula_plot.png} 
-%     \column{0.5\textwidth}
-%     \textbf{Joe Copula (True) vs. Gumbel (Misspecified)}
-%     \begin{itemize}
-%         \item High sensitivity of $\xi$ to the \textit{type} of tail dependence.
-%         \item Choice of the copula "link" is critical for unbiased marginal estimation.
-%     \end{itemize}
-%   \end{columns}
-% \end{frame}
+    We simulate with the following setup:
+    \begin{itemize}
+        \item Margin: $\mathrm{EGPD}(\kappa = 2, \sigma = 1, \xi = 0.1)$
+        \item Copula: Gumbel, $\theta \in (1, 2, 4, 6)$
+        \item MC simulations: 300
+        \item Sample size: 250, 500, 1000, 2000, 4000, 8000
+    \end{itemize}
+    
+    We test different methods and compare the results.
+
+    \begin{itemize}
+        \item EGPD - Gumbel (Benchmark)
+        \item EGPD with iid
+        \item GPD under iid, $u = 0.90, 0.95$
+        \item GPD with Declustering
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Speed of Convergence: Tail Index}
+    \begin{overprint}
+        \onslide<1>
+        \begin{figure}
+            \centering
+            \includegraphics[width=\textwidth]{figures/sim_consistency1.png}
+        \end{figure}
+
+        \onslide<2>
+        \begin{figure}
+            \centering
+            \includegraphics[width=\textwidth]{figures/sim_consistency2.png}
+        \end{figure}
+    \end{overprint}
+\end{frame}
 
 % ==========================================
 % ROADMAP

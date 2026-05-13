@@ -121,7 +121,7 @@ plot(log(x_grid), log(pmax(S_gpd, eps)),
      lwd = 2,
      col = "black",
      xlab = expression(log(x)),
-     ylab = expression(log(1 - F(x))),
+     ylab = expression(log(bar(F)(x))),
      main = "")
 
 lines(log(x_grid), log(pmax(S_k2, eps)),

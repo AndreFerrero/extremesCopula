@@ -52,7 +52,7 @@ par(mar = c(5,5,3,1))
 plot(u_grid,
      xi_hat,
      type = "b",
-     pch = 19,
+     pch = 16,
      lwd = 2,
      xlab = "Threshold  u",
      ylim = c(min(xi_hat - 1.96*se_hat), max(xi_hat + 1.96*se_hat)),

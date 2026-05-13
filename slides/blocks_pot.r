@@ -37,7 +37,7 @@ plot(t, x,
      lwd = 1.5,
      xlab = "",
      ylab = "Observations",
-     main = "Block Maxima Approach")
+     main = "Block Maxima")
 
 # Block colors
 cols <- c(rgb(0,0,1,0.08),
@@ -85,7 +85,7 @@ for(i in 1:n_blocks){
 points(block_max_t,
        block_max_x,
        pch = 19,
-       cex = 1.7,
+       cex = 1.2,
        col = c("blue","forestgreen","orange","purple"))
 
 dev.off()
@@ -124,7 +124,7 @@ points(exc,
        x[exc],
        pch = 19,
        col = "red",
-       cex = 1.5)
+       cex = 1.2)
 
 # Draw exceedance segments
 segments(exc,
@@ -139,7 +139,7 @@ text(10,
      threshold + 1,
      labels = expression(u),
      col = "red",
-     cex = 1.3)
+     cex = 1.2)
 
 dev.off()
 

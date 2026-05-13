@@ -26,7 +26,6 @@ plot_consistency <- function(sim_results,
                              models_to_show = NULL,
                              free_y = FALSE,
                              auto_zoom = TRUE) {
-  
   type <- match.arg(type)
   scale <- match.arg(scale)
 
@@ -39,11 +38,11 @@ plot_consistency <- function(sim_results,
     "EGPD_JOE"            = "#7CAE00", # Olive Green
     "IID_GPD"             = "#C77CFF", # Purple
     "GPD_Declustering"    = "#00BA38", # Green
-    "Censored_GPD_GUMBEL" = "#DE8C00",  # Orange
+    "Censored_GPD_GUMBEL" = "#DE8C00", # Orange
     "Hill"                = "#619CFF", # Light Blue
-    "Hill_BC"             = "#FF61CC"  # Pink
+    "Hill_BC"             = "#FF61CC" # Pink
   )
-  
+
   model_ltypes <- c(
     "IID_EGPD"            = "dashed",
     "EGPD_GUMBEL"         = "solid",
@@ -68,8 +67,7 @@ plot_consistency <- function(sim_results,
 
   # 2. Determine Subtitle
   is_threshold_dependent <- any(!is.na(plot_data$threshold))
-  sub_text <- sprintf("Scale: %s", toupper(scale))
-  if (is_threshold_dependent) sub_text <- paste0(sub_text, sprintf(" | Threshold: %.2f", target_threshold))
+  if (is_threshold_dependent) sub_text <- sprintf("Threshold: %.2f", target_threshold)
 
   # 3. Y-variable Selection
   y_var <- if (scale == "bias") "bias" else "estimate"
@@ -104,8 +102,10 @@ plot_consistency <- function(sim_results,
 
   # 7. Build Plot
   p <- ggplot(plot_data, aes(x = n_factor, y = y_val)) +
-    geom_hline(data = ref_lines, aes(yintercept = intercept),
-               color = "grey40", linetype = "dashed", linewidth = 0.6)
+    geom_hline(
+      data = ref_lines, aes(yintercept = intercept),
+      color = "grey40", linetype = "dashed", linewidth = 0.6
+    )
 
   if (type == "median") {
     p <- p +
@@ -114,7 +114,7 @@ plot_consistency <- function(sim_results,
       scale_color_manual(values = model_colors) +
       scale_linetype_manual(values = model_ltypes)
   } else {
-    p <- p + 
+    p <- p +
       geom_boxplot(aes(fill = model), outlier.size = 0.5, alpha = 0.7, lwd = 0.3) +
       scale_fill_manual(values = model_colors)
   }
@@ -146,7 +146,251 @@ plot_consistency <- function(sim_results,
   return(p)
 }
 
+plot_consistency <- function(sim_results,
+                             target_param = "xi",
+                             type = c("median", "boxplot"),
+                             scale = c("bias", "raw"),
+                             target_threshold = 0.90,
+                             models_to_show = NULL,
+                             free_y = FALSE,
+                             auto_zoom = TRUE,
+                             title = NULL,
+                             subtitle = NULL,
+                             caption = NULL,
+                             xlab = NULL,
+                             ylab = NULL,
+                             base_size = 12,
+                             legend_position = "top") {
+  type <- match.arg(type)
+  scale <- match.arg(scale)
 
+  # ============================================================================
+  # GLOBAL STYLE DEFINITION
+  # ============================================================================
+  model_colors <- c(
+    "IID_EGPD"            = "#00BFC4",
+    "EGPD_GUMBEL"         = "#F8766D",
+    "EGPD_JOE"            = "#7CAE00",
+    "IID_GPD"             = "#C77CFF",
+    "GPD_Declustering"    = "#00BA38",
+    "Censored_GPD_GUMBEL" = "#DE8C00",
+    "Hill"                = "#619CFF",
+    "Hill_BC"             = "#FF61CC"
+  )
+
+  model_ltypes <- c(
+    "IID_EGPD"            = "dashed",
+    "EGPD_GUMBEL"         = "solid",
+    "EGPD_JOE"            = "solid",
+    "IID_GPD"             = "dotted",
+    "GPD_Declustering"    = "dotdash",
+    "Censored_GPD_GUMBEL" = "longdash",
+    "Hill"                = "solid",
+    "Hill_BC"             = "solid"
+  )
+
+  # ============================================================================
+  # FILTER DATA
+  # ============================================================================
+  plot_data <- sim_results %>%
+    filter(parameter == target_param) %>%
+    filter(is.na(threshold) | threshold == target_threshold)
+
+  if (!is.null(models_to_show)) {
+    plot_data <- plot_data %>% filter(model %in% models_to_show)
+  }
+
+  if (nrow(plot_data) == 0) {
+    stop("No data found for the specified filters.")
+  }
+
+  # ============================================================================
+  # DEFAULT LABELS
+  # ============================================================================
+
+  # Auto subtitle only if user does not provide one
+  if (is.null(subtitle)) {
+    is_threshold_dependent <- any(!is.na(plot_data$threshold))
+
+    subtitle <- if (is_threshold_dependent) {
+      sprintf("Threshold: %.2f", target_threshold)
+    } else {
+      NULL
+    }
+  }
+
+  # Default title
+  if (is.null(title)) {
+    title <- sprintf(
+      "%s Analysis: %s",
+      tools::toTitleCase(type),
+      target_param
+    )
+  }
+
+  # Default x label
+  if (is.null(xlab)) {
+    xlab <- "Sample Size (n)"
+  }
+
+  # Default y label
+  if (is.null(ylab)) {
+    ylab <- if (scale == "bias") {
+      "Median Bias"
+    } else {
+      "Parameter Estimate"
+    }
+  }
+
+  # ============================================================================
+  # Y VARIABLE
+  # ============================================================================
+  y_var <- if (scale == "bias") "bias" else "estimate"
+
+  # ============================================================================
+  # REFERENCE LINES
+  # ============================================================================
+  ref_lines <- plot_data %>%
+    group_by(theta_true) %>%
+    summarise(
+      intercept = if (scale == "bias") 0 else unique(true_value)[1],
+      .groups = "drop"
+    )
+
+  # ============================================================================
+  # DYNAMIC REORDERING
+  # ============================================================================
+  model_order <- plot_data %>%
+    group_by(model) %>%
+    summarise(
+      var_score = sd(.data[[y_var]], na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(var_score)) %>%
+    pull(model)
+
+  plot_data$model <- factor(plot_data$model, levels = model_order)
+
+  # ============================================================================
+  # DATA TRANSFORMATION
+  # ============================================================================
+  if (type == "median") {
+    plot_data <- plot_data %>%
+      group_by(model, theta_true, n) %>%
+      summarise(
+        y_val = median(.data[[y_var]], na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(n_factor = factor(n))
+  } else {
+    plot_data <- plot_data %>%
+      rename(y_val = !!sym(y_var)) %>%
+      mutate(n_factor = factor(n))
+  }
+
+  # ============================================================================
+  # BASE PLOT
+  # ============================================================================
+  p <- ggplot(
+    plot_data,
+    aes(x = n_factor, y = y_val)
+  ) +
+    geom_hline(
+      data = ref_lines,
+      aes(yintercept = intercept),
+      color = "grey40",
+      linetype = "dashed",
+      linewidth = 0.6
+    )
+
+  # ============================================================================
+  # GEOMS
+  # ============================================================================
+  if (type == "median") {
+    p <- p +
+      geom_line(
+        aes(
+          group = model,
+          color = model,
+          linetype = model
+        ),
+        linewidth = 1
+      ) +
+
+      geom_point(aes(color = model),
+        size = 2
+      ) +
+
+      scale_color_manual(values = model_colors) +
+
+      scale_linetype_manual(values = model_ltypes)
+  } else {
+    p <- p +
+      geom_boxplot(aes(fill = model),
+        outlier.size = 0.5,
+        alpha = 0.7,
+        lwd = 0.3
+      ) +
+
+      scale_fill_manual(values = model_colors)
+  }
+
+  # ============================================================================
+  # FACETING + THEME
+  # ============================================================================
+  p <- p +
+    facet_wrap(
+      ~theta_true,
+      labeller = as_labeller(
+        function(x) {
+          sapply(x, function(val) {
+            bquote(theta == .(val))
+          })
+        },
+        default = label_parsed
+      ),
+      scales = if (free_y) "free_y" else "fixed"
+    ) +
+
+    theme_bw(base_size = base_size) +
+
+    theme(
+      legend.position = legend_position,
+      legend.title = element_blank(),
+      strip.background = element_rect(fill = "grey95"),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      panel.grid.minor = element_blank()
+    ) +
+
+    labs(
+      title = if (nzchar(title)) title else NULL,
+      subtitle = if (nzchar(subtitle)) subtitle else NULL,
+      caption = caption,
+      x = xlab,
+      y = ylab
+    )
+
+  # ============================================================================
+  # SMART ZOOMING
+  # ============================================================================
+  if (auto_zoom && type == "boxplot") {
+    y_lims <- quantile(
+      plot_data$y_val,
+      probs = c(0.01, 0.99),
+      na.rm = TRUE
+    )
+
+    p <- p +
+      coord_cartesian(
+        ylim = c(
+          y_lims[1] - 0.15 * abs(y_lims[1]),
+          y_lims[2] + 0.15 * abs(y_lims[2])
+        )
+      )
+  }
+
+  return(p)
+}
 
 # ==============================================================================
 # EXECUTION
@@ -168,7 +412,6 @@ load("sims/copula_markov/egpd_gumbel/res/consistency_neldermead_gumbeldata_joe_h
 # plot_consistency(results, target_param = "sigma", target_threshold = 0.95)
 # plot_consistency(results, target_param = "kappa", target_threshold = 0.95)
 # plot_consistency(results, target_param = "theta", target_threshold = 0.95)
-
 
 
 # Compare the stability of all models for Tail Index (xi)
@@ -194,14 +437,41 @@ plot_consistency(results,
   auto_zoom = TRUE
 )
 
-plot_consistency(results,
-  type = "boxplot",
-  scale = "raw",
-  target_param = "xi", target_threshold = 0.95,
-  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "IID_GPD"),
-  auto_zoom = TRUE
+png("slides/figures/sim_consistency1.png",
+  width = 1200, height = 650, res = 100
 )
 
+plot_consistency(
+  results,
+  type = "boxplot",
+  target_threshold = 0.95,
+  scale = "raw",
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "IID_GPD"),
+  title = "",
+  subtitle = "",
+  xlab = NULL,
+  ylab = NULL,
+  legend_position = "right"
+)
+dev.off()
+
+png("slides/figures/sim_consistency2.png",
+  width = 1200, height = 650, res = 100
+)
+
+plot_consistency(
+  results,
+  type = "boxplot",
+  target_threshold = 0.95,
+  scale = "raw",
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "IID_GPD", "GPD_Declustering"),
+  title = "",
+  subtitle = "",
+  xlab = NULL,
+  ylab = NULL,
+  legend_position = "right"
+)
+dev.off()
 
 plot_consistency(results,
   type = "boxplot",
@@ -228,12 +498,16 @@ plot_consistency(results,
 plot_consistency(results, scale = "raw", type = "boxplot")
 
 # To see your new Convergence Rate analysis:
-plot_consistency(results, scale = "rmse",
+plot_consistency(results,
+  scale = "rmse",
   target_threshold = 0.95,
   models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD"),
-  log_log = TRUE)
+  log_log = TRUE
+)
 
-plot_consistency(results, scale = "raw",
+plot_consistency(results,
+  scale = "raw",
   type = "median",
   target_threshold = 0.90,
-  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD"))
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD")
+)
