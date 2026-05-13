@@ -208,7 +208,7 @@ run_consistency_study_parallel <- function(
           )
 
 
-          k_val <- floor(n_sim^0.6)
+          k_val <- floor(n_sim^0.5)
 
           hill_fit <- tryCatch(
               hill_bc_hat(x_sim, k_val),
@@ -382,14 +382,24 @@ run_consistency_study_parallel <- function(
   return(results_df)
 }
 
+now <- Sys.time()
+cat("Launching at ", now, "\n")
+
 results <- run_consistency_study_parallel(
   dep_sequence = c(1, 2, 4, 6),
   n_sequence = c(250, 500, 1000, 2000, 4000, 8000),
-  mc_iterations = 50,
-  true_params = list(kappa = 6, sigma = 1, xi = 0.1),
+  mc_iterations = 300,
+  true_params = list(kappa = 2, sigma = 1, xi = 0.1),
   threshold_probs = c(0.90, 0.95),
   seed = 123
 )
 
-save(results, file = here(script_dir, "res/consistency_neldermead_gumbeldata_joe_hill_kn06__kappa6_sigma1_xi01.RData"))
-print("Simulation completed and results saved.")
+after <- Sys.time()
+cat("Simulation completed at ", after, "\n")
+
+diff <- as.numeric(difftime(after, now, units = "hours"))
+cat("Elapsed time", diff, "\n")
+
+save(results, file = here(script_dir, "res/consistency_mc300_u9095_neldermead_gumbeldata_joe_hill_kn05_kappa2_sigma1_xi01.RData"))
+
+print("Results saved")
