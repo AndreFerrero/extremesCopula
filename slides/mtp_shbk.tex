@@ -299,6 +299,13 @@
     \end{itemize}
 \end{frame}
 
+\begin{frame}{Gumbel Copula}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/gumbel_copula.png}
+    \end{figure}
+\end{frame}
+
 \begin{frame}{Copula Markov Chains}
     
     % Step 1: The Definition (Always visible)
@@ -387,8 +394,9 @@
     \begin{itemize}
         \item EGPD - Gumbel (Benchmark)
         \item EGPD with iid
-        \item GPD under iid, $u = 0.90, 0.95$
-        \item GPD with Declustering
+        \item GPD under iid, threshold at 95\% quantile
+        \item GPD with (Intervals) Declustering \cite{ferro2003}
+        \item EGPD - Joe (Copula Mispecification)
     \end{itemize}
 
 \end{frame}
@@ -407,6 +415,27 @@
             \includegraphics[width=\textwidth]{figures/sim_consistency2.png}
         \end{figure}
     \end{overprint}
+\end{frame}
+
+\begin{frame}{Copula Mispecification}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/sim_consistency3.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Hill Estimates: RMSE (n = 2000)}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/hill_rmse.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Hill Estimates: Absolute Relative Bias (n = 2000)}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/hill_relbias.png}
+    \end{figure}
 \end{frame}
 
 % ==========================================

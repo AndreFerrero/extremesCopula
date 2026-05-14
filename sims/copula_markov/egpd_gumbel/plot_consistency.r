@@ -399,7 +399,7 @@ library(dplyr)
 library(ggplot2)
 library(here)
 
-load("sims/copula_markov/egpd_gumbel/res/consistency_neldermead_gumbeldata_joe_hill_kn07_kappa6_sigma1_xi01.RData")
+load("sims/copula_markov/egpd_gumbel/res/consistency_mc300_u9095_neldermead_gumbeldata_joe_hill_kn05_kappa2_sigma1_xi01.RData")
 
 
 # Assuming 'results$results' is the output from your simulation function
@@ -425,7 +425,7 @@ plot_consistency(results,
   type = "boxplot",
   scale = "raw",
   target_param = "xi", target_threshold = 0.95,
-  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD", "Censored_GPD_GUMBEL", "Hill", "Hill_BC", "EGPD_JOE"),
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "GPD_Declustering", "IID_GPD", "Censored_GPD_GUMBEL", "Hill", "Hill_BC"),
   auto_zoom = TRUE
 )
 
@@ -465,6 +465,24 @@ plot_consistency(
   target_threshold = 0.95,
   scale = "raw",
   models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "IID_GPD", "GPD_Declustering"),
+  title = "",
+  subtitle = "",
+  xlab = NULL,
+  ylab = NULL,
+  legend_position = "right"
+)
+dev.off()
+
+png("slides/figures/sim_consistency3.png",
+  width = 1200, height = 650, res = 100
+)
+
+plot_consistency(
+  results,
+  type = "boxplot",
+  target_threshold = 0.95,
+  scale = "raw",
+  models_to_show = c("IID_EGPD", "EGPD_GUMBEL", "EGPD_JOE"),
   title = "",
   subtitle = "",
   xlab = NULL,

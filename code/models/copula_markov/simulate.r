@@ -8,8 +8,8 @@ egpd_gumbel_model <- make_copula_markov_model(margin_egpd, copula_gumbel, stan_m
 egpd_joe_model <- make_copula_markov_model(margin_egpd, copula_joe, stan_mod = NULL)
 
 
-margin_param <- c(mu = 0, kappa = 1, sigma = 1, xi = 0.1)
-copula_param <- 2
+margin_param <- c(mu = 0, kappa = 2, sigma = 1, xi = 0.1)
+copula_param <- 1
 n <- 8000
 
 egpd_gumbel_data <- egpd_gumbel_model$simulate(

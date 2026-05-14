@@ -14,7 +14,7 @@ egpd_gumbel_data <- egpd_gumbel_model$simulate(
      copula_param = copula_param
 )
 
-res <- 120
+res <- 150
 
 png("slides/figures/egpd_gumbel_hist_ts.png",
      width = 800, height = 400,

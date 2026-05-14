@@ -44,7 +44,7 @@ stable_level <- mean(
 # =========================================================
 
 png("slides/figures/hill_plot.png",
-    width = 1200,
+    width = 1400,
     height = 700,
     res = 180)
 
