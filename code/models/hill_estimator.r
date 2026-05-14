@@ -52,8 +52,8 @@ hill_bc_hat <- function(data, k_target) {
     return(NA)
   }
 
-  print(paste("Estimated Rho:", round(rho_star, 4), "at k =", k_val)
-  )
+  # print(paste("Estimated Rho:", round(rho_star, 4), "at k =", k_val)
+  # )
   M <- calc_all_moments(order_stats, k_target) # Moments at k_target
   
   # 2. Apply correction at the specific k_target
