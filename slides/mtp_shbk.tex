@@ -306,31 +306,51 @@
     \end{figure}
 \end{frame}
 
-\begin{frame}{Copula Markov Chains}
-    
-    % Step 1: The Definition (Always visible)
-    \begin{block}{}
-        A stationary first-order Markov chain $\{X_t\}$ is fully defined by its marginal distribution $F$ and the copula $C$ of the pair $(X_{t-1}, X_t)$.
-    \end{block}
-
-    % Step 2: The Joint Model (Appears on click 2)
-    \begin{block}<2->{Joint Distribution}
-        \[ F_{X_{t-1}, X_t}(x_{t-1}, x_t) = C(F(x_{t-1}), F(x_t)) \]
-    \end{block}
-
-    % Step 3: The Transition (Appears on click 3)
-    \begin{block}<3->{Conditional Distribution}
-        \[ 
-        P(X_t \le x_t \mid X_{t-1} = x) = \frac{\partial}{\partial u} C(u, F(x_t)) \Big|_{u=F(x_{t-1})} 
-        \]
-    \end{block}
-
-\end{frame}
-
-\begin{frame}{Simulation Example: EGPD - Gumbel}
+\begin{frame}{Gumbel Copula: Upper Tail}
     \begin{figure}
         \centering
-        \includegraphics[width=\textwidth]{figures/egpd_gumbel_hist_ts.png}
+        \includegraphics[width=\textwidth]{figures/gumbel_upper_tail.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Gumbel Copula: Lower Tail}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/gumbel_lower_tail.png}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Copula Markov Chains}
+    
+    A stationary first-order Markov chain $\{X_t\}$ is fully defined by its marginal distribution $F$ and the copula $C$ of the pair $(X_{t-1}, X_t)$.
+
+    \begin{overprint}
+        \onslide<1>
+        \begin{block}{Joint Distribution}
+            \[ F_{X_{t-1}, X_t}(x_{t-1}, x_t) = C(F(x_{t-1}), F(x_t)) \]
+        \end{block}
+
+        \begin{block}{Conditional Distribution}
+            \[ 
+            P(X_t \le x_t \mid X_{t-1} = x_{t-1}) = \frac{\partial}{\partial u} C(u, F(x_t)) \Big|_{u=F(x_{t-1})} 
+            \]
+        \end{block}
+
+        \onslide<2>
+        \begin{block}{Sampling}
+            \vspace{0.2cm}
+            \begin{enumerate}
+                \item Sample $U_t \mid U_{t-1}$ s.t. $(U_{t-1}, U_t) \sim C$ (Rosenblatt transform)
+                \item $X_t = F^{-1}(U_t)$
+            \end{enumerate}
+        \end{block}
+    \end{overprint}
+\end{frame}
+
+\begin{frame}{Simulation Example: EGPD(2,1,0.1) - Gumbel(3)}
+    \begin{figure}
+        \centering
+        \includegraphics[width=\textwidth]{figures/copula_markov.png}
     \end{figure}
 \end{frame}
 
@@ -339,15 +359,6 @@
         \centering
         \includegraphics[width=\textwidth]{figures/egpd_gumbel_acf_pacf.png}
     \end{figure}
-\end{frame}
-
-\begin{frame}{Transition distribution}
-    \centering
-    \only<1>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot.png}}
-    \only<2>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot_upper_zoom.png}}
-    \only<3>{\includegraphics[width=0.60\textwidth]{figures/lag_upper.png}}
-    \only<4>{\includegraphics[width=0.60\textwidth]{figures/egpd_gumbel_lag_plot_lower_zoom.png}}
-    \only<5>{\includegraphics[width=0.60\textwidth]{figures/lag_lower.png}}
 \end{frame}
 
 \begin{frame}{Inference Strategies for Copula Models}
