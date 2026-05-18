@@ -31,6 +31,12 @@ extract_model_params <- function(fit, model_type, threshold = NA) {
       xi = fit$estimate["xi"],
       theta = fit$estimate["theta"]
     ),
+    "EGPD_GUMBEL_IFM" = list(
+      kappa = fit$estimate["kappa"],
+      sigma = fit$estimate["sigma"],
+      xi = fit$estimate["xi"],
+      theta = fit$estimate["theta"]
+    ),
     "EGPD_JOE" = list(
       kappa = fit$estimate["kappa"],
       sigma = fit$estimate["sigma"],
@@ -202,13 +208,17 @@ run_consistency_study_parallel <- function(
             "EGPD_GUMBEL"
           )
 
+          params_gumbel_ifm <- extract_model_params(
+            tryCatch(fit_egpd_gumbel_copula(x_sim, method = "ifm"), error = function(e) e),
+            "EGPD_GUMBEL_IFM"
+          )
           params_joe <- extract_model_params(
             tryCatch(fit_egpd_joe_copula(x_sim), error = function(e) e),
             "EGPD_JOE"
           )
 
 
-          k_val <- floor(n_sim^0.5)
+          k_val <- floor(n_sim^0.7)
 
           hill_fit <- tryCatch(
               hill_bc_hat(x_sim, k_val),
@@ -233,6 +243,7 @@ run_consistency_study_parallel <- function(
           base_res <- dplyr::bind_rows(
             params_iid,
             params_gumbel,
+            params_gumbel_ifm,
             params_joe,
             hill,
             hill_bc
@@ -400,6 +411,6 @@ cat("Simulation completed at ", after, "\n")
 diff <- as.numeric(difftime(after, now, units = "hours"))
 cat("Elapsed time", diff, "\n")
 
-save(results, file = here(script_dir, "res/consistency_mc300_u9095_neldermead_gumbeldata_joe_hill_kn05_kappa2_sigma1_xi01.RData"))
+save(results, file = here(script_dir, "res/consistency_mc300_u9095_neldermead_gumbeldata_ifm_joe_hill_kn07_kappa2_sigma1_xi01.RData"))
 
 print("Results saved")
