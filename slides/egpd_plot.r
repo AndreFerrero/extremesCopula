@@ -47,40 +47,44 @@ dens_list <- lapply(kappa_vals, egpd_density)
 # =========================================================
 
 png("slides/figures/egpd_plot.png",
-       width = 1200,
-       height = 500,
-       res = 180
-)
+    width = 1200,
+    height = 600,
+    res = 180)
 
 par(
-  mar = c(2.8,4,1,1),
-  mgp = c(2,0.7,0)
+  mar = c(3, 4, 2, 1),
+  mgp = c(2, 0.6, 0),
+  las = 1
 )
 
 plot(x_grid, gpd_dens,
-       type = "l",
-       lwd = 2,
-       col = "black",
-       xlab = expression(x),
-       ylab = expression(f(x)),
-       main = ""
-)
+     type = "l",
+     lwd = 2.5,
+     col = "black",
+     xlab = expression(x),
+     ylab = expression(f(x)),
+     bty = "l",
+     xaxt = "n")
 
-lines(x_grid, dens_list[[1]], col = "darkblue", lwd = 2)
-lines(x_grid, dens_list[[2]], col = "red", lwd = 2)
+axis(1, tck = -0.02)
+grid(col = "grey90")
 
-legend("top",
-       legend = c(
-              "GPD (κ=1)",
-              "EGPD κ=2",
-              "EGPD k=4"
-       ),
-       col = c("black", "darkblue", "red"),
-       lty = c(1, 1, 1),
+lines(x_grid, dens_list[[1]],
+      col = adjustcolor("steelblue4", 0.9),
+      lwd = 2)
+
+lines(x_grid, dens_list[[2]],
+      col = adjustcolor("firebrick3", 0.9),
+      lwd = 2)
+
+legend("topright",
+       legend = c("GPD (κ = 1)",
+                  "EGPD (κ = 2)",
+                  "EGPD (κ = 4)"),
+       col = c("black", "steelblue4", "firebrick3"),
        lwd = 2,
-       horiz = TRUE,
-       bty = "n"
-)
+       bty = "n")
+
 dev.off()
 
 # =========================================================
@@ -109,7 +113,7 @@ S_k4 <- egpd_surv(4)
 eps <- 1e-10
 
 png("slides/figures/egpd_tail_equivalence.png",
-    width = 1200, height = 500, res = 180)
+    width = 1200, height = 600, res = 180)
 
 par(
   mar = c(2.8,4,1,1),
@@ -122,14 +126,18 @@ plot(log(x_grid), log(pmax(S_gpd, eps)),
      col = "black",
      xlab = expression(log(x)),
      ylab = expression(log(bar(F)(x))),
-     main = "")
+     main = "",
+     bty = "l",
+     xaxt = "n")
+axis(1, tck = -0.02)
+grid(col = "grey90")
 
 lines(log(x_grid), log(pmax(S_k2, eps)),
-      col = "darkblue",
+      col = "steelblue4",
       lwd = 2)
 
 lines(log(x_grid), log(pmax(S_k4, eps)),
-      col = "red",
+      col = "firebrick3",
       lwd = 2)
 
 abline(a = 0.5,                 # intercept (adjust visually)
@@ -143,7 +151,7 @@ legend("topright",
                   expression(EGPD~~kappa==2),
                   expression(EGPD~~kappa==4),
                   expression("slope ="~~-1/xi)),
-       col = c("black", "darkblue", "red", "gray50"),
+       col = c("black", "steelblue4", "firebrick3", "gray50"),
        lwd = 2,
        lty = c(1,1,1,2),
        bty = "n")
