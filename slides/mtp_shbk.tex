@@ -25,6 +25,9 @@
 \usepackage{amsmath, amsfonts, amssymb, bm}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{biblatex}
+
+\addbibresource{ref.bib}
 
 % --- Title ---
 \title{Copula Markov Chains for Dependent Extremes}
@@ -78,24 +81,29 @@
 
 \maketitle
 
+\begin{frame}{Overview}
+	\begin{itemize}
+		\item Review of classical and modern approaches for \textbf{independent} extremes
+		\item Review of classical approaches of dealing with \textbf{dependent} extremes
+		\item Copula Markov Chains for Dependent Extremes
+	\end{itemize}
+\end{frame}
+
 % ==========================================
 % SECTION 1: FOUNDATIONS
 % ==========================================
-\section{Foundations}
+\section{Extreme Value Theory: Foundations}
 
 \begin{frame}{GEV: The Limit Distribution of Maxima}
 
-  \begin{block}<1->{}
-    Assume $X_1, \dots, X_n$ are \alert{i.i.d.} random variables from a distribution $F$. Let $M_n = \max(X_1, \dots, X_n)$. 
+  Assume $X_1, \dots, X_n$ are \alert{i.i.d.} random variables from a distribution $F$. Let $M_n = \max(X_1, \dots, X_n)$. \pause
   
-    If there exist sequences $a_n > 0$ and $b_n$ such that:
-    \[
-    P\left( \frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi(x)
-    \]
-    then $G_\xi$ is a \alert{Generalized Extreme Value (GEV)} distribution. We say that $F$ is in the \textbf{maximum domain of attraction} (MDA) of $G_\xi$.
-  \end{block}
+	If there exist sequences $a_n > 0$ and $b_n$ such that:
+	\[
+	P\left( \frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi(x)
+	\]
+	then $G_\xi$ is a \alert{Generalized Extreme Value (GEV)} distribution. We say that $F$ is in the \textbf{maximum domain of attraction} (MDA) of $G_\xi$. \pause
 
-  \begin{block}<2->{}
   The \textbf{shape parameter} $\xi$ (tail index) defines the margin tail behavior:
   
   \begin{itemize}
@@ -103,23 +111,7 @@
     \item \textbf{$\xi = 0$:} \textbf{Gumbel} (Exponential-like, e.g., Normal, Gamma)
     \item \textbf{$\xi < 0$:} \textbf{Weibull} (Bounded upper tail, e.g., Uniform, Beta)
   \end{itemize}
-  \end{block}
   
-\end{frame}
-
-\begin{frame}{GPD: The Limit Distribution of Exceedances}
-    For a sufficiently high threshold $u$, we consider the distribution of the \alert{exceedances} $Y = X - u$, given that $X > u$. If $F \in MDA(G_\xi)$, with $G_\xi$ a GEV distribution, then:
-    
-    
-    \[
-    P(X - u \le y \mid X > u) \xrightarrow{u \to \infty} H_{\xi, \sigma}(y) = \begin{cases}
-		1 - \left( 1 + \xi \frac{y}{\sigma} \right)^{-1/\xi}, & \xi \neq 0, y > 0 \\
-		1 - \exp\left( -\frac{y}{\sigma} \right), & \xi = 0, y > 0
-		\end{cases}
-    \]
-   
-		where $H_{\xi, \sigma}$ is the \alert{Generalized Pareto Distribution (GPD)}
-
 \end{frame}
 
 \begin{frame}{Modelling Block Maxima with GEV}
@@ -127,6 +119,21 @@
 		\centering
 		\includegraphics[width=\textwidth]{figures/block_maxima.png}
 	\end{figure}
+\end{frame}
+
+\begin{frame}{GPD: The Limit Distribution of Exceedances}
+    For a sufficiently high threshold $u$, we consider the distribution of the \alert{exceedances} $Y = X - u$, given that $X > u$. If $F \in MDA(G_\xi)$, with $G_\xi$ a GEV distribution, then:
+    
+    
+    \[
+    P(X - u \le y \mid X > u) \xrightarrow{u \to u_F} H_{\xi, \sigma}(y) = \begin{cases}
+		1 - \left( 1 + \xi \frac{y}{\sigma} \right)^{-1/\xi}, & \xi \neq 0, y > 0 \\
+		1 - \exp\left( -\frac{y}{\sigma} \right), & \xi = 0, y > 0
+		\end{cases}
+    \]
+   
+		where $H_{\xi, \sigma}$ is the \alert{Generalized Pareto Distribution (GPD)}
+
 \end{frame}
 
 \begin{frame}{POT: Modelling Exceedances with GPD}
@@ -146,9 +153,9 @@
 \begin{frame}{Hill Estimator: a semi-parametric approach for $\xi > 0$}
     Assume $F$ has a regularly varying tail: $\bar{F}(x) = x^{-1/\xi} L(x)$, with $\xi > 0$ and $L(x)$ a slowly varying function. \pause
 
-    Given the order statistics $X_{(1)} \ge X_{(2)} \ge \dots \ge X_{(n)}$, the Hill estimator is defined as:
+    Given the order statistics $X_{(1)} \le X_{(2)} \le \dots \le X_{(n)}$, the Hill estimator is defined as:
     \[
-    \hat{\xi}_H(k) = \frac{1}{k} \sum_{i=1}^{k} \log \left( \frac{X_{(i)}}{X_{(k+1)}} \right)
+    \hat{\xi}_H(k) = \frac{1}{k} \sum_{i=1}^{k} \log X_{(n-i+1)} - \log X_{(n-k)}
     \]
 		
 \end{frame}
@@ -222,67 +229,103 @@
 % ==========================================
 % SECTION 2: DEPENDENCE
 % ==========================================
-\section{Dependence}
+\section{Modelling Dependent Extremes}
 
-\begin{frame}{Long-Range Dependence: $D(u_n)$ Condition}
+% \begin{frame}{Long-Range Dependence: Mixing and $D(u_n)$ Conditions}
     
-    \begin{block}{$D(u_n)$ Condition \cite{leadbetter1974}}
-        A stationary sequence $\{X_n\}$ satisfies $D(u_n)$ if for any $1 \le i_1 < \dots < i_p < j_1 < \dots < j_q \le n$ with $j_1 - i_p > l$:
-        \[ |P(X_{i_1, \dots, i_p} \le u_n, X_{j_1, \dots, j_q} \le u_n) - P(X_{i_1, \dots, i_p} \le u_n)P(X_{j_1, \dots, j_q} \le u_n)| \le \alpha_{n,l} \]
-        where $\alpha_{n,l_n} \to 0$ for some $l_n$ s.t. $l_n/n \to 0$ as $n \to \infty$
-    \end{block}
 
-    \textbf{Intuition:} Extreme events occurring far apart in time behave as if they were independent.
+%     \begin{block}{$D(u_n)$ Condition \cite{leadbetter1974}}
+%         A stationary sequence $\{X_n\}$ satisfies $D(u_n)$ if for any $1 \le i_1 < \dots < i_p < j_1 < \dots < j_q \le n$ with $j_1 - i_p > l$:
+%         \[ |P(X_{i_1, \dots, i_p} \le u_n, X_{j_1, \dots, j_q} \le u_n) - P(X_{i_1, \dots, i_p} \le u_n)P(X_{j_1, \dots, j_q} \le u_n)| \le \alpha_{n,l} \]
+%         where $\alpha_{n,l_n} \to 0$ for some $l_n$ s.t. $l_n/n \to 0$ as $n \to \infty$
+%     \end{block}
+
+%     \textbf{Intuition:} Extreme events occurring far apart in time behave as if they were independent.
+% \end{frame}
+
+\begin{frame}{Mixing Conditions and Extremal Dependence}
+
+\textbf{General idea of mixing conditions:}
+
+For a sufficiently large lag $l$, distant blocks of a mixing time series behave approximately independently:
+\[
+(X_1, \dots, X_i)
+\;\overset{\text{(approx. independence)}}{\longleftrightarrow}\;
+(X_{i+l}, \dots, X_{i+l+j})
+\] \pause
+
+\textbf{Extension to extremes: $D(u_n)$ condition} \cite{leadbetter1974}
+
+The same idea is applied only to exceedances:
+\[
+(X_1 > u_n, \dots, X_i > u_n)
+\;\overset{\text{(approx. independence)}}{\longleftrightarrow}\;
+(X_{i+l} > u_n, \dots, X_{i+l+j} > u_n)
+\]
+
 \end{frame}
 
 \begin{frame}{Distribution of Maxima of Stationary Sequences}
 
-    Assume $\{X_n\} \sim F$ is a stationary sequence satifying $D(u_n)$ with maximum $M_n$. Assume also that for the i.i.d. sequence $\{X^*_n\} \sim F$, the associated maxima $M^*_n$ has GEV limit $G_\xi$. \pause Then, for a constant $0 < \theta \leq 1$,
+    Assume $\{X_n\} \sim F$ is a stationary sequence satifying $D(u_n)$ with maximum $M_n$. Assume also that for the i.i.d. sequence $\{X^*_n\} \sim F$, the associated maxima $M^*_n$ has GEV limit $G_\xi$. \pause Then, for a constant $0 < \theta \leq 1$ (\alert{extremal index}),
 
     \[
     P \left(\frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi^\theta(x).
     \] \pause
 
-    The \alert{extremal index} $\theta$ quantifies the degree of clustering (dependence) of extremes:
-    \begin{itemize}
-        \item $\theta = 1$: No clustering (i.i.d. case).
-        \item $\theta < 1$: Exceedances cluster.
-    \end{itemize} \pause
-
-    \textbf{Note:} There exist dependent sequences with $\theta = 1$.
+    \textbf{Note:} Under i.i.d, $\theta = 1$ and therefore we recover the standard result.
 \end{frame}
 
 \begin{frame}{Threshold Exceedances and Declustering}
-    Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{declustering}:
 
-    \begin{enumerate}
-        \item<1-> Identify \alert{clusters} of extremes (\alert{How?})
-        \item<2-> Retain only the \alert{maximum} of each cluster.
-        \item<3-> Fit the GPD to these cluster maxima (assumed independent).
-    \end{enumerate}
+    \only<1>{
+        Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{declustering}:
+    }
 
-    \vspace{0.3cm}
+    \only<2->{
+        Under dependence, exceedances over a threshold $u$ are typically modelled using \alert{declustering}:
 
-    \begin{figure}
-        \centering
+        \begin{enumerate}
+            \item<2-> Identify \textbf{clusters} of extremes over a threshold \textcolor{red}{u} (How?)
+            \item<3-> Retain only the \textcolor{red}{maximum} of each cluster.
+            \item<4-> Fit the GPD to these cluster maxima (assumed independent).
+        \end{enumerate}
 
-        % Overlay 1
-        \only<1>{
-            \includegraphics[width=\textwidth]{figures/declustering1.png}
-        }
+        \vspace{0.3cm}
 
-        % Overlays 2 and 3
-        \only<2-3>{
-            \includegraphics[width=\textwidth]{figures/declustering2.png}
-        }
+        \begin{figure}
+            \centering
 
-    \end{figure}
+            % Overlay 2
+            \only<2>{
+                \includegraphics[width=\textwidth]{figures/declustering1.png}
+            }
+
+            % Overlays 3 and 4
+            \only<3-4>{
+                \includegraphics[width=\textwidth]{figures/declustering2.png}
+            }
+
+        \end{figure}
+    }
 
 \end{frame}
+
+\begin{frame}{Extremes of Markov Chains}
+	Wide literature studying the properties of extremes emerging from markov chains:
+
+	\begin{itemize}
+		\item Extremal index of Markov Chains \cite{smith1992}
+		\item \textbf{Tail Chains:} The evolution of extremes is governed by a latent process \cite{drees2015}
+		\item Models are based on \textbf{Multivariate EVT}: Limit theory for the pairs of variables $(X_{t-1}, X_t)$
+		\item Classical Example: Logistic/Gumbel Model after a threshold (Censored Likelihood)
+	\end{itemize}
+\end{frame}
+
 % ==========================================
 % SECTION 3: COPULA MARKOV MODELS
 % ==========================================
-\section{Copula Markov Models}
+\section{Copula Markov Chains}
 
 \begin{frame}{Copulas: Decoupling Margins from Dependence}
     A \textbf{Copula} is a multivariate distribution function with uniform marginals on $[0,1]$. \pause
@@ -299,7 +342,7 @@
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Gumbel Copula}
+\begin{frame}{Parametric Example: Gumbel Copula}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/gumbel_copula.png}
@@ -322,7 +365,7 @@
 
 \begin{frame}{Copula Markov Chains}
     
-    A stationary first-order Markov chain $\{X_t\}$ is fully defined by its marginal distribution $F$ and the copula $C$ of the pair $(X_{t-1}, X_t)$.
+    A stationary (first-order) Markov chain $\{X_t\}$ can be constructed from a marginal distribution $F$ and a copula $C$ for the pair $(X_{t-1}, X_t)$.
 
     \begin{overprint}
         \onslide<1>
@@ -335,8 +378,13 @@
             P(X_t \le x_t \mid X_{t-1} = x_{t-1}) = \frac{\partial}{\partial u} C(u, F(x_t)) \Big|_{u=F(x_{t-1})} 
             \]
         \end{block}
+				
+				\onslide<2>
+        \begin{block}{Properties}
+            Copula Markov Chains generally satisfy mixing conditions for many copula choices (e.g. Gumbel) \cite{chen2009}
+        \end{block}
 
-        \onslide<2>
+        \onslide<3>
         \begin{block}{Sampling}
             \vspace{0.2cm}
             \begin{enumerate}
@@ -347,42 +395,34 @@
     \end{overprint}
 \end{frame}
 
-\begin{frame}{Simulation Example: EGPD(2,1,0.1) - Gumbel(3)}
+\begin{frame}{Simulation Example: EGPD(2,1,0.1) - Gumbel(4)}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/copula_markov.png}
     \end{figure}
 \end{frame}
 
-\begin{frame}{Correlation structure}
-    \begin{figure}
-        \centering
-        \includegraphics[width=\textwidth]{figures/egpd_gumbel_acf_pacf.png}
-    \end{figure}
-\end{frame}
-
-\begin{frame}{Inference Strategies for Copula Models}
-    Estimating model parameters is usually done via:
+\begin{frame}{Inference for Copula Models}
+    Estimating parametric copula models is generally done via:
 
     \begin{overprint}
         \onslide<1>
         \begin{block}{1. Inference Functions for Margins (IFM)}
+					\vspace{0.2cm}
             A two-step estimator:
             \begin{enumerate}
-                \item Estimate marginal parameters $\hat{\bm{\theta}}_{m}$ assuming i.i.d. observations.
-                \item Estimate copula parameters $\hat{\bm{\theta}}_{c}$ given the fitted margins $\hat{F} = F_{\hat{\theta_m}}$ by maximising copula log-likelihood.
+                \item Estimate marginal parameters $\hat{\bm{\phi}}$ assuming i.i.d. observations.
+                \item Estimate copula parameters $\hat{\bm{\theta}}$ given the fitted margins $\hat{F} = F_{\hat{\phi}}$ by maximising copula log-likelihood.
             \end{enumerate}
         \end{block}
 
         \onslide<2>
         \begin{block}{2. Full Joint Likelihood}
-            Simultaneous estimation by maximizing the complete log-likelihood. For a copula markov model:
-            \[ \ell(\bm{\theta}_{tot}) = \sum_{t=1}^n \log f(x_t; \bm{\theta}_m) + \sum_{t=2}^n \log c(F(x_{t-1}), F(x_t); \bm{\theta}_c) \]
+					\vspace{0.2cm}
+            Simultaneous estimation by maximizing the joint log-likelihood. For a copula markov model:
+            \[ \ell((\bm{\phi},\bm{\theta})) = \sum_{t=1}^n \log f(x_t; \bm{\phi}) + \sum_{t=2}^n \log c(F(x_{t-1}; \bm{\phi}), F(x_t; \bm{\phi}); \bm{\theta}) \]
         \end{block}
     \end{overprint}
-\end{frame}
-
-\begin{frame}{Tail Chains}
 \end{frame}
 
 % ==========================================
@@ -412,7 +452,7 @@
 
 \end{frame}
 
-\begin{frame}{Speed of Convergence: Tail Index}
+\begin{frame}{Tail Index: Speed of Convergence}
     \begin{overprint}
         \onslide<1>
         \begin{figure}
@@ -428,42 +468,52 @@
     \end{overprint}
 \end{frame}
 
-\begin{frame}{Copula Mispecification}
+\begin{frame}{Tail Index: Copula Mispecification}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/sim_consistency3.png}
     \end{figure}
 \end{frame}
 
-\begin{frame}{Hill Estimates: RMSE (n = 2000)}
-    \begin{figure}
-        \centering
-        \includegraphics[width=\textwidth]{figures/hill_rmse.png}
-    \end{figure}
-\end{frame}
-
-\begin{frame}{Hill Estimates: Absolute Relative Bias (n = 2000)}
-    \begin{figure}
-        \centering
-        \includegraphics[width=\textwidth]{figures/hill_relbias.png}
-    \end{figure}
-\end{frame}
-
 % ==========================================
 % ROADMAP
 % ==========================================
-\section{Conclusion}
+\section{Conclusion and Future Directions}
 
-\begin{frame}{Future Directions}
+\begin{frame}{Joint Bulk and Tail Dependence Modelling}
+
+\begin{columns}[t]
+
+% Left column: Pros
+\begin{column}{0.5\textwidth}
+\textbf{Pros}
+\begin{itemize}
+    \item It captures dependence of extremes and nulk while modelling the entire marginal behaviour
+    \item It avoids threshold selection procedures
+\end{itemize}
+\end{column}
+
+% Right column: Cons
+\begin{column}{0.5\textwidth}
+\textbf{Cons}
+\begin{itemize}
+    \item Big price for dependence mispecification with parametric models even on margin parameters
+\end{itemize}
+\end{column}
+
+\end{columns}
+
+\vspace{1cm}
+\textbf{Directions:}
+\begin{itemize}
+    \item Model selection
+    \item Nonparametric copulas with tail dependence properties
+\end{itemize}
 \end{frame}
 
 
-\begin{frame}[allowframebreaks]{References}
-  \footnotesize
-
-  \bibliographystyle{apalike} 
-  
-  \bibliography{ref} 
+\begin{frame}[allowframebreaks]
+  \printbibliography
 \end{frame}
 
 \end{document}
