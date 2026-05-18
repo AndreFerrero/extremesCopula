@@ -31,7 +31,7 @@ margin_param <- c(
   xi    = 0.1
 )
 
-copula_param <- 3
+copula_param <- 4
 n <- 10000
 
 # ---------------------------------------------------------
@@ -93,7 +93,7 @@ hist(
   probability = TRUE,
   col = "grey80",
   border = "white",
-  main = expression("Latent uniforms " ~ U[t]),
+  main = expression("Latent" ~ U[t]),
   xlab = expression(U[t])
 )
 
@@ -128,7 +128,7 @@ hist(
   probability = TRUE,
   col = "grey80",
   border = "white",
-  main = expression("Observed process " ~ X[t]),
+  main = expression("Observed " ~ X[t]),
   xlab = expression(X[t])
 )
 
