@@ -15,7 +15,7 @@ set.seed(123)
 # Simulate heavy-tailed data
 # ---------------------------------------------------------
 n <- 3000
-x <- abs(rt(n, df = 2))
+x <- abs(rt(n, df = 4))
 
 # ---------------------------------------------------------
 # Threshold grid
@@ -57,7 +57,7 @@ plot(u_grid,
      xlab = "Threshold  u",
      ylim = c(min(xi_hat - 1.96*se_hat), max(xi_hat + 1.96*se_hat)),
      ylab = expression(hat(xi)(u)),
-     main = expression(X %~% t[2]))
+     main = expression(X %~% t[4]))
 
 # Confidence bands
 lines(u_grid,
@@ -68,16 +68,16 @@ lines(u_grid,
       xi_hat - 1.96*se_hat,
       lty = 2)
 
-true_xi <- 1/2
+true_xi <- 1/4
 
 abline(h = true_xi,
        lty = 2,
        lwd = 2,
        col = "red")
 
-text(5,
+text(3,
      true_xi - 0.04,
-     expression(xi == 0.5),
+     expression(xi == 0.25),
      col = "red")
 
 dev.off()

@@ -2,6 +2,7 @@
 
 % --- Load Metropolis Theme ---
 \usetheme{metropolis}
+\setbeamertemplate{frame numbering}[fraction]
 
 \usepackage{xcolor}
 
@@ -115,7 +116,7 @@
 	\]
 	then $G_\xi$ is a \alert{Generalized Extreme Value (GEV)} distribution. We say that $F$ is in the \textbf{maximum domain of attraction} (MDA) of $G_\xi$. \pause
 
-  The \textbf{shape parameter} $\xi$ (tail index) defines the margin tail behavior:
+  The \textbf{shape parameter} $\xi$ (Extreme Value Index) defines the margin tail behavior:
   
   \begin{itemize}
     \item \textbf{$\xi > 0$:} \textbf{Fréchet} (Heavy-tailed, e.g., Pareto, Cauchy)
@@ -183,7 +184,7 @@
     Under certain (second order) conditions on the tail of the distribution, Hill's estimator is asymptotically normal but biased:
 
         \[
-        \sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N\left( \frac{\lambda}{1-\rho}, \frac{1}{\xi^2} \right)
+        \sqrt{k} \left( \hat{\xi}_H - \xi \right) \xrightarrow{d} N\left( \frac{\lambda}{1-\rho}, \xi^2 \right)
         \] with $\rho \leq 0$ and $\lambda$ a finite constant.
         \pause
 
@@ -220,7 +221,7 @@
         where $H_{\xi, \sigma}(x)$ is the GPD CDF and \alert{$\kappa > 0$} is a bulk parameter.
     \end{block} \pause
 
-    \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same tail index}.
+    \textbf{Tail Consistency:} For any $\kappa > 0$, the tail behavior remains governed by $\xi$. The EGPD and GPD share the \alert{same extreme value index}.
 \end{frame}
 
 \begin{frame}{EGPD vs GPD: bulk change}
@@ -281,7 +282,7 @@ The same idea is applied only to exceedances:
     Assume $\{X_n\} \sim F$ is a stationary sequence satifying $D(u_n)$ with maximum $M_n$. Assume also that for the i.i.d. sequence $\{X^*_n\} \sim F$, the associated maxima $M^*_n$ has GEV limit $G_\xi$. \pause Then, for a constant $0 < \gamma \leq 1$ (\alert{extremal index}),
 
     \[
-    P \left(\frac{M_n - b_n}{a_n} \le x \right) \xrightarrow{n \to \infty} G_\xi^\gamma(x).
+    P \left(\frac{M_n - b^*_n}{a^*_n} \le x \right) \xrightarrow{n \to \infty} G_\xi^\gamma(x).
     \] \pause
 
     \textbf{Note:} Under i.i.d, $\gamma = 1$ and therefore we recover the standard result.
@@ -290,14 +291,13 @@ The same idea is applied only to exceedances:
 \begin{frame}{Threshold Exceedances and Declustering}
 
     \only<1>{
-        Under dependence, exceedances are typically modelled using \alert{declustering}:
+        Under dependence, exceedances are typically modelled using \alert{declustering}.
     }
 
     \only<2->{
-        Under dependence, exceedances are typically modelled using \alert{declustering}:
 
         \begin{enumerate}
-            \item<2-> Identify \textbf{clusters} of extremes over a threshold \textcolor{red}{u} (How?)
+            \item<2-> Identify \textbf{clusters} of extremes over a threshold \textcolor{red}{u} (How?).
             \item<3-> Retain only the \textcolor{red}{maximum} of each cluster.
             \item<4-> Fit the GPD to these cluster maxima (assumed independent).
         \end{enumerate}
@@ -375,11 +375,11 @@ The same idea is applied only to exceedances:
 \end{frame}
 
 \begin{frame}{Copula Markov Chains}
-    
-    A stationary (first-order) Markov chain $\{X_t\}$ can be constructed from a marginal distribution $F$ and a copula $C$ for the pair $(X_{t-1}, X_t)$.
 
     \begin{overprint}
         \onslide<1>
+        A stationary (first-order) Markov chain $\{X_t\}$ can be constructed from a marginal distribution $F$ and a copula $C$ for the pair $(X_{t-1}, X_t)$.
+
         \begin{block}{Joint Distribution}
             \[ F_{X_{t-1}, X_t}(x_{t-1}, x_t) = C(F(x_{t-1}), F(x_t)) \]
         \end{block}
@@ -390,16 +390,17 @@ The same idea is applied only to exceedances:
             \]
         \end{block}
 				
-				\onslide<2>
+		\onslide<2>
         \begin{block}{Properties}
-            Copula Markov Chains generally satisfy mixing conditions for many copula choices (e.g. Gumbel) \parencite{chen2009}
+            Copula Markov Chains generally satisfy \alert{mixing conditions} for many copula choices (e.g. Gumbel) \parencite{chen2009,longla2012}
         \end{block}
 
         \onslide<3>
-        \begin{block}{Sampling}
+        \begin{block}{Sampling (Rosenblatt Transform)}
             \vspace{0.2cm}
             \begin{enumerate}
-                \item Sample $U_t \mid U_{t-1}$ s.t. $(U_{t-1}, U_t) \sim C$ (Rosenblatt transform)
+                \item Generate $V_t \sim U(0,1)$
+                \item Set $U_1 = V_1$ and $U_t = C^{-1}(V_t \mid U_{t-1})$ (Numerical Inversion)
                 \item $X_t = F^{-1}(U_t)$
             \end{enumerate}
         \end{block}
@@ -414,20 +415,21 @@ The same idea is applied only to exceedances:
 \end{frame}
 
 \begin{frame}{Inference for Copula Models}
-    Estimating parametric copula models is generally done via:
-
     \begin{overprint}
         \onslide<1>
+        There are different ways to estimate copula models. For a review, see \parencite{choros2010}
+
+        \onslide<2>
         \begin{block}{1. Inference Functions for Margins (IFM)}
-					\vspace{0.2cm}
+		\vspace{0.2cm}
             A two-step estimator:
             \begin{enumerate}
-                \item Estimate marginal parameters $\hat{\bm{\phi}}$ assuming i.i.d. observations.
-                \item Estimate copula parameters $\hat{\bm{\theta}}$ given the fitted margins $\hat{F} = F_{\hat{\phi}}$ by maximising copula log-likelihood.
+                \item Estimate marginal parameters $\hat{\bm{\phi}}$ (or non-parametrically) assuming i.i.d. observations.
+                \item Estimate copula parameters $\hat{\bm{\theta}}$ given the fitted margins by maximising copula log-likelihood.
             \end{enumerate}
         \end{block}
 
-        \onslide<2>
+        \onslide<3>
         \begin{block}{2. Full Joint Likelihood}
 					\vspace{0.2cm}
             Simultaneous estimation by maximizing the joint log-likelihood. For a copula markov model:
@@ -441,7 +443,7 @@ The same idea is applied only to exceedances:
 % ==========================================
 \section{Simulation Study}
 
-\begin{frame}{Setup and Methods}
+\begin{frame}{Setup}
 
     We simulate with the following setup:
     \begin{itemize}
@@ -453,7 +455,7 @@ The same idea is applied only to exceedances:
 
 \end{frame}
 
-\begin{frame}{Tail Index: Speed of Convergence}
+\begin{frame}{Methods}
     Evaluated methods:
     \begin{itemize}
         \item \textcolor{EGPDGumbel}{EGPD - Gumbel}  (Benchmark)
@@ -462,14 +464,14 @@ The same idea is applied only to exceedances:
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Tail Index: Speed of Convergence}
+\begin{frame}{Extreme Value Index: Speed of Convergence}
     \begin{figure}
             \centering
             \includegraphics[width=\textwidth]{figures/sim_consistency1.png}
     \end{figure}
 \end{frame}
 
-\begin{frame}{Tail Index: Speed of Convergence}
+\begin{frame}{More methods}
     Evaluated methods:
     \begin{itemize}
         \item \textcolor{EGPDGumbel}{EGPD - Gumbel} (Benchmark)
@@ -482,7 +484,7 @@ The same idea is applied only to exceedances:
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Tail Index: Speed of Convergence}
+\begin{frame}{Extreme Value Index: Speed of Convergence}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/sim_consistency2.png}
@@ -495,7 +497,7 @@ The same idea is applied only to exceedances:
     \end{figure}
 \end{frame}
 
-\begin{frame}{Tail Index: Copula Mispecification}
+\begin{frame}{Extreme Value Index: Copula Mispecification}
     \begin{figure}
         \centering
         \includegraphics[width=\textwidth]{figures/sim_consistency4.png}
@@ -515,7 +517,7 @@ The same idea is applied only to exceedances:
 \begin{column}{0.5\textwidth}
 \textbf{Pros}
 \begin{itemize}
-    \item It captures dependence of extremes and nulk while modelling the entire marginal behaviour
+    \item It captures dependence of extremes and of the bulk while modelling the entire marginal behaviour
     \item It avoids threshold selection procedures
 \end{itemize} \pause
 \end{column}

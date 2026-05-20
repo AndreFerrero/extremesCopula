@@ -10,7 +10,7 @@ set.seed(123)
 # ---------------------------------------------------------
 # Simulate heavy-tailed sample
 # ---------------------------------------------------------
-x <- abs(rt(4000, df = 2))
+x <- abs(rt(4000, df = 4))
 
 # ---------------------------------------------------------
 # Hill estimates
@@ -56,10 +56,10 @@ plot(k, xi,
      lwd = 2,
      col = "black",
      xlim = c(15, 1000),
-     ylim = range(xi),
+     ylim = c(min(c(xi, 1/4-0.01)),max(xi)),
      xlab = "k",
      ylab = expression(hat(xi)[H](k)),
-     main = "",
+     main = expression(X %~% t[4]),
      las = 1,
      xaxt = "n")
 axis(1, at = seq(15, 1000, by = 50))
@@ -72,16 +72,16 @@ axis(1, at = seq(15, 1000, by = 50))
 lines(k, xi,
       lwd = 2)
 
-true_xi <- 1/2
+true_xi <- 1/4
 
 abline(h = true_xi,
        lty = 2,
        lwd = 2,
        col = "red")
 
-text(250,
+text(300,
      true_xi + 0.01,
-     expression(xi == 0.5),
+     expression(xi == 0.25),
      col = "red")
 
 dev.off()
