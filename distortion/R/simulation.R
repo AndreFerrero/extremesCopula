@@ -61,3 +61,6 @@ compute_pseudo_obs <- function(X) {
 
   list(Uhat = Uhat, Yhat = Yhat)
 }
+
+m = matrix(c(1,2,3,4), ncol = 2, nrow = 2)
+as.vector(m)
