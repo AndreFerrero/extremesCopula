@@ -14,8 +14,7 @@ set.seed(123)
 # ---------------------------------------------------------
 # Simulate heavy-tailed data
 # ---------------------------------------------------------
-n <- 3000
-x <- abs(rt(n, df = 4))
+x <- evd::rfrechet(3000, shape = 4)
 
 # ---------------------------------------------------------
 # Threshold grid
@@ -57,7 +56,7 @@ plot(u_grid,
      xlab = "Threshold  u",
      ylim = c(min(xi_hat - 1.96*se_hat), max(xi_hat + 1.96*se_hat)),
      ylab = expression(hat(xi)(u)),
-     main = expression(X %~% t[4]))
+     main = expression(X %~% Fréchet(alpha == 4)))
 
 # Confidence bands
 lines(u_grid,
@@ -75,8 +74,8 @@ abline(h = true_xi,
        lwd = 2,
        col = "red")
 
-text(3,
-     true_xi - 0.04,
+text(2.2,
+     true_xi + 0.04,
      expression(xi == 0.25),
      col = "red")
 

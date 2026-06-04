@@ -10,7 +10,7 @@ set.seed(123)
 # ---------------------------------------------------------
 # Simulate heavy-tailed sample
 # ---------------------------------------------------------
-x <- abs(rt(4000, df = 4))
+x <- evd::rfrechet(3000, shape = 4)
 
 # ---------------------------------------------------------
 # Hill estimates
@@ -23,21 +23,11 @@ xi_full <- h$gamma
 # ---------------------------------------------------------
 # Keep only first 300 k values
 # ---------------------------------------------------------
-idx <- k_full <= 1000 & k_full > 15
+idx <- k_full <= 2000 & k_full > 1
 
 k  <- k_full[idx]
 xi <- xi_full[idx]
 
-# ---------------------------------------------------------
-# Stable region
-# ---------------------------------------------------------
-k1 <- 100
-k2 <- 180
-
-stable_level <- mean(
-  xi[k >= k1 & k <= k2],
-  na.rm = TRUE
-)
 
 # =========================================================
 # Plot
@@ -55,14 +45,13 @@ plot(k, xi,
      type = "l",
      lwd = 2,
      col = "black",
-     xlim = c(15, 1000),
-     ylim = c(min(c(xi, 1/4-0.01)),max(xi)),
+     xlim = c(1, 2000),
+     ylim = c(min(c(xi, 1/4-0.05)),max(xi)),
      xlab = "k",
      ylab = expression(hat(xi)[H](k)),
-     main = expression(X %~% t[4]),
-     las = 1,
-     xaxt = "n")
-axis(1, at = seq(15, 1000, by = 50))
+     main = expression(X %~% Fréchet(alpha == 4)),
+     las = 1)
+# axis(1, at = seq(1, 1000, by = 50))
 
 # ---------------------------------------------------------
 # Stable region shading
@@ -80,7 +69,7 @@ abline(h = true_xi,
        col = "red")
 
 text(300,
-     true_xi + 0.01,
+     true_xi + 0.03,
      expression(xi == 0.25),
      col = "red")
 

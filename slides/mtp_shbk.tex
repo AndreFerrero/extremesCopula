@@ -93,18 +93,22 @@
 
 \maketitle
 
+\begin{frame}{Motivation: Classical Problems in Extremes Modelling}
+    \begin{itemize}
+        \item Classical methods require preliminary, and often \textbf{subjective}, choices before fitting the model
+        \item Extremes are \textbf{scarse} and we need methods that avoid discarding useful information
+        \item Ignoring \textbf{dependence} can make tail estimation difficult due to lower effective sample size
+    \end{itemize}
+\end{frame}
+
 \begin{frame}{Overview}
-	\begin{itemize}
-		\item Review of classical and modern approaches for \textbf{independent} extremes
-		\item Review of classical approaches of dealing with \textbf{dependent} extremes
-		\item Copula Markov Chains for Dependent Extremes
-	\end{itemize}
+    \tableofcontents
 \end{frame}
 
 % ==========================================
 % SECTION 1: FOUNDATIONS
 % ==========================================
-\section{Extreme Value Theory: Foundations}
+\section{Classical and Modern Approaches to Extremes Modelling}
 
 \begin{frame}{GEV: The Limit Distribution of Maxima}
 
@@ -138,7 +142,7 @@
     
     
     \[
-    P(X - u \le y \mid X > u) \xrightarrow{u \to u_F} H_{\xi, \sigma}(y) = \begin{cases}
+    P(X - u \le y \mid X > u) \xrightarrow{u \to x_+} H_{\xi, \sigma}(y) = \begin{cases}
 		1 - \left( 1 + \xi \frac{y}{\sigma} \right)^{-1/\xi}, & \xi \neq 0, y > 0 \\
 		1 - \exp\left( -\frac{y}{\sigma} \right), & \xi = 0, y > 0
 		\end{cases}
@@ -374,37 +378,39 @@ The same idea is applied only to exceedances:
     \end{figure}
 \end{frame}
 
-\begin{frame}{Copula Markov Chains}
+\begin{frame}{Copula Markov Chains: Construction}
 
-    \begin{overprint}
-        \onslide<1>
-        A stationary (first-order) Markov chain $\{X_t\}$ can be constructed from a marginal distribution $F$ and a copula $C$ for the pair $(X_{t-1}, X_t)$.
+    A stationary (first-order) Markov chain $\{X_t\}$ can be constructed from a marginal distribution $F$ and a copula $C$ for the pair $(X_{t-1}, X_t)$.
 
+        \centering
         \begin{block}{Joint Distribution}
             \[ F_{X_{t-1}, X_t}(x_{t-1}, x_t) = C(F(x_{t-1}), F(x_t)) \]
         \end{block}
 
         \begin{block}{Conditional Distribution}
-            \[ 
-            P(X_t \le x_t \mid X_{t-1} = x_{t-1}) = \frac{\partial}{\partial u} C(u, F(x_t)) \Big|_{u=F(x_{t-1})} 
+            \[
+            P(X_t \le x_t \mid X_{t-1}=x_{t-1})
+            =
+            \frac{\partial}{\partial u}C(u,v)
+            \Big|_{u=F(x_{t-1}),\,v=F(x_t)}
             \]
         \end{block}
-				
-		\onslide<2>
-        \begin{block}{Properties}
-            Copula Markov Chains generally satisfy \alert{mixing conditions} for many copula choices (e.g. Gumbel) \parencite{chen2009,longla2012}
-        \end{block}
+\end{frame}
 
-        \onslide<3>
-        \begin{block}{Sampling (Rosenblatt Transform)}
-            \vspace{0.2cm}
-            \begin{enumerate}
-                \item Generate $V_t \sim U(0,1)$
-                \item Set $U_1 = V_1$ and $U_t = C^{-1}(V_t \mid U_{t-1})$ (Numerical Inversion)
-                \item $X_t = F^{-1}(U_t)$
-            \end{enumerate}
-        \end{block}
-    \end{overprint}
+
+\begin{frame}{Copula Markov Chains: Dependence properties}
+    \centering
+    Copula Markov Chains generally satisfy \alert{mixing conditions} for many copula choices (e.g. Gumbel) \parencite{chen2009,longla2012}
+\end{frame}
+
+\begin{frame}{Copula Markov Chains: Simulation}
+    \begin{block}{Sampling (Rosenblatt Transform)}
+        \begin{enumerate}
+            \item Generate $V_t \sim U(0,1)$
+            \item Set $U_1 = V_1$ and $U_t = C^{-1}(V_t \mid U_{t-1})$ (Numerical Inversion)
+            \item $X_t = F^{-1}(U_t)$
+    \end{enumerate}
+    \end{block}
 \end{frame}
 
 \begin{frame}{Simulation Example: EGPD(2,1,0.1) - Gumbel(4)}
@@ -417,23 +423,24 @@ The same idea is applied only to exceedances:
 \begin{frame}{Inference for Copula Models}
     \begin{overprint}
         \onslide<1>
+        \centering
         There are different ways to estimate copula models. For a review, see \parencite{choros2010}
 
         \onslide<2>
-        \begin{block}{1. Inference Functions for Margins (IFM)}
+        \begin{block}{1. Full Joint Likelihood}
+					\vspace{0.2cm}
+            Simultaneous estimation by maximizing the joint log-likelihood. For a copula markov model:
+            \[ \ell((\bm{\phi},\bm{\theta})) = \sum_{t=1}^n \log f(x_t; \bm{\phi}) + \sum_{t=2}^n \log c(F(x_{t-1}; \bm{\phi}), F(x_t; \bm{\phi}); \bm{\theta}) \]
+        \end{block}
+        
+        \onslide<3>
+        \begin{block}{2. Inference Functions for Margins (IFM)}
 		\vspace{0.2cm}
             A two-step estimator:
             \begin{enumerate}
                 \item Estimate marginal parameters $\hat{\bm{\phi}}$ (or non-parametrically) assuming i.i.d. observations.
                 \item Estimate copula parameters $\hat{\bm{\theta}}$ given the fitted margins by maximising copula log-likelihood.
             \end{enumerate}
-        \end{block}
-
-        \onslide<3>
-        \begin{block}{2. Full Joint Likelihood}
-					\vspace{0.2cm}
-            Simultaneous estimation by maximizing the joint log-likelihood. For a copula markov model:
-            \[ \ell((\bm{\phi},\bm{\theta})) = \sum_{t=1}^n \log f(x_t; \bm{\phi}) + \sum_{t=2}^n \log c(F(x_{t-1}; \bm{\phi}), F(x_t; \bm{\phi}); \bm{\theta}) \]
         \end{block}
     \end{overprint}
 \end{frame}
@@ -507,7 +514,7 @@ The same idea is applied only to exceedances:
 % ==========================================
 % ROADMAP
 % ==========================================
-\section{Conclusion}
+\section*{Conclusion}
 
 \begin{frame}{Joint Bulk and Tail Dependence Modelling}
 

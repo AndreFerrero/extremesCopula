@@ -10,7 +10,7 @@ load_all()
 # Settings
 # ------------------------------------------------------------------------------
 n <- 1000
-k <- 10000
+k <- 1000
 theta_true <- 3
 family_choice <- "joe" # Joe is non-GEV, so the package fit should be worse
 seed <- 46

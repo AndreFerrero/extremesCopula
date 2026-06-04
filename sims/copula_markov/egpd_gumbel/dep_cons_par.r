@@ -218,7 +218,7 @@ run_consistency_study_parallel <- function(
           )
 
 
-          k_val <- floor(n_sim^0.7)
+          k_val <- floor(n_sim^0.5)
 
           hill_fit <- tryCatch(
               hill_bc_hat(x_sim, k_val),
@@ -411,6 +411,6 @@ cat("Simulation completed at ", after, "\n")
 diff <- as.numeric(difftime(after, now, units = "hours"))
 cat("Elapsed time", diff, "\n")
 
-save(results, file = here(script_dir, "res/consistency_mc300_u9095_neldermead_gumbeldata_ifm_joe_hill_kn07_kappa2_sigma1_xi01.RData"))
+save(results, file = here(script_dir, "res/consistency_mc300_u9095_neldermead_gumbeldata_ifm_joe_hill_kn05_kappa2_sigma1_xi01.RData"))
 
 print("Results saved")

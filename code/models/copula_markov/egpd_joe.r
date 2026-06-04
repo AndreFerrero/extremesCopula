@@ -1,28 +1,12 @@
 # 1. Joe Copula Log-Density
 log_djoe_copula <- function(u, v, theta) {
-  # Numerical stability
+  # Numerical safety boundaries
   u <- pmin(pmax(u, 1e-10), 1 - 1e-10)
   v <- pmin(pmax(v, 1e-10), 1 - 1e-10)
-  
-  alpha <- 1 / theta
-  
-  # Term components
-  u_term <- (1 - u)^theta
-  v_term <- (1 - v)^theta
-  
-  # om_hJ is the "outer" part of the Joe survival function logic
-  om_hJ <- u_term + v_term - (u_term * v_term)
-  # hJ is the interaction
-  hJ <- (1 - u_term) * (1 - v_term)
-  
-  # Polynomial term from the derivative of the generator
-  # This corresponds to the log_poly in your Stan code
-  log_poly <- log1p((1 - alpha) * (hJ / om_hJ))
-  
-  log_c <- log(theta) + (theta - 1) * (log1p(-u) + log1p(-v)) - 
-           (1 - alpha) * log(om_hJ) + log_poly
-  
-  return(log_c)
+
+  log_density <- dCopula(cbind(u, v), joeCopula(theta), log = TRUE)
+
+  return(log_density)
 }
 
 # 2. Negative Log-Likelihood for Joe-EGPD
