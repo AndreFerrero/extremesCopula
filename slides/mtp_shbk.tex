@@ -73,7 +73,7 @@
 
 \author{
   \textbf{Andrea Ferrero}$^{1}$\\[0.2cm]
-  \small Supervised by: Gwladys Toulemonde$^{1}$, Nicolas Meyer$^{1}$, Klaus Herrmann$^{2}$
+  \small Gwladys Toulemonde$^{1}$, Nicolas Meyer$^{1}$, Klaus Herrmann$^{2}$
 }
 
 \institute{
@@ -93,22 +93,26 @@
 
 \maketitle
 
-\begin{frame}{Motivation: Classical Problems in Extremes Modelling}
+\begin{frame}{Classical Problems in Extremes Modelling}
     \begin{itemize}
-        \item Classical methods require preliminary, and often \textbf{subjective}, choices before fitting the model
+        \item Classical methods require \textbf{preliminary}, and often \textbf{subjective}, choices before fitting the model
         \item Extremes are \textbf{scarse} and we need methods that avoid discarding useful information
         \item Ignoring \textbf{dependence} can make tail estimation difficult due to lower effective sample size
     \end{itemize}
 \end{frame}
 
 \begin{frame}{Overview}
-    \tableofcontents
+    \begin{itemize}
+        \item Review of classical and modern approaches to model \textbf{independent} extremes 
+        \item Review of classical approaches to model \textbf{dependent} extremes
+        \item Copula Markov Chains
+    \end{itemize}
 \end{frame}
 
 % ==========================================
 % SECTION 1: FOUNDATIONS
 % ==========================================
-\section{Classical and Modern Approaches to Extremes Modelling}
+\section{Modelling Independent Extremes}
 
 \begin{frame}{GEV: The Limit Distribution of Maxima}
 
@@ -197,22 +201,6 @@
         \item \textbf{Dependence:} \parencite{dehaan2016} shows correction under \alert{$\beta$-mixing}
     \end{itemize}
 \end{frame}
-
-% \begin{frame}{Generalized Hill Estimator ($\xi \in \mathbb{R}$)}
-
-%     \begin{itemize}
-%         \item \textbf{Local Hill Statistic:} $H_{j,n} = \frac{1}{j} \sum_{i=1}^{j} \log X_{(i)} - \log X_{(j+1)}$ \pause
-%         \item \textbf{Empirical Substitute ($UH$):} Under general MDA, the quantity $UH = X_{(j+1)} H_{j,n}$ is regularly varying with index $\xi$. \pause
-%     \end{itemize}
-
-%     \begin{block}{The Estimator}
-%         Estimated as the slope of the generalized quantile plot:
-%         \[
-%         \hat{\xi}^H_{k,n} = \frac{1}{k} \sum_{j=1}^{k} \log UH_{j,n} - \log UH_{k+1,n}
-%         \]
-%     \end{block}
-
-% \end{frame}
 
 \begin{frame}{Extended GPD: Avoiding Threshold Selection}
     The idea is to transform the GPD by a suitable distortion function $G(u)$ \parencite{naveau2016}. \pause
