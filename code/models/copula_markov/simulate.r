@@ -7,10 +7,10 @@ source("code/models/copulas/joe.r")
 egpd_gumbel_model <- make_copula_markov_model(margin_egpd, copula_gumbel, stan_mod = NULL)
 egpd_joe_model <- make_copula_markov_model(margin_egpd, copula_joe, stan_mod = NULL)
 
-
+set.seed(1)
 margin_param <- c(mu = 0, kappa = 2, sigma = 1, xi = 0.1)
-copula_param <- 1
-n <- 8000
+copula_param <- 5
+n <- 100000
 
 egpd_gumbel_data <- egpd_gumbel_model$simulate(
     n = n,

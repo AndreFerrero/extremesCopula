@@ -1,5 +1,6 @@
 debug_megpd_step <- function(x_prev,
                              kappa,
+                             sigma,
                              xi,
                              delta_func,
                              n_grid = 1000) {
@@ -9,7 +10,7 @@ debug_megpd_step <- function(x_prev,
   # -------------------------------------------------------
   # 1. GRID
   # -------------------------------------------------------
-  x_grid <- make_log_grid(x_prev, n_grid = n_grid)
+  u_grid <- make_u_grid(n_grid = n_grid)
 
   plot(x_grid,
        rep(0, length(x_grid)),
