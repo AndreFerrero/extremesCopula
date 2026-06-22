@@ -1,4 +1,4 @@
-# source("megpd/markov_megpd_u.r")
+# source("megpd/markov_megpd_u_uniroot.r")
 library(ggplot2)
 library(patchwork)
 
@@ -245,32 +245,32 @@ p_dep <- ggplot(
 # Hill tail-index estimate
 #----------------------------------------------------------
 
-hill <- function(x, k = 100) {
-  xs <- sort(x, decreasing = TRUE)
-  mean(log(xs[1:k])) - log(xs[k + 1])
-}
+# hill <- function(x, k = 100) {
+#   xs <- sort(x, decreasing = TRUE)
+#   mean(log(xs[1:k])) - log(xs[k + 1])
+# }
 
-cat(
-  "\nHill xi estimate (k=50): ",
-  round(hill(Rt, 50), 3),
-  "\n"
-)
+# cat(
+#   "\nHill xi estimate (k=50): ",
+#   round(hill(Rt, 50), 3),
+#   "\n"
+# )
 
-source("code/models/hill_estimator.r")
+# source("code/models/hill_estimator.r")
 
-hill_bc_hat(Rt, 50)
+# # hill_bc_hat(Rt, 50)
 
-cat(
-  "Hill xi estimate (k=100): ",
-  round(hill(Rt, 100), 3),
-  "\n"
-)
+# cat(
+#   "Hill xi estimate (k=100): ",
+#   round(hill(Rt, 100), 3),
+#   "\n"
+# )
 
-cat(
-  "True xi:",
-  xi_val,
-  "\n"
-)
+# cat(
+#   "True xi:",
+#   xi_val,
+#   "\n"
+# )
 
 #----------------------------------------------------------
 # Final panel
@@ -281,5 +281,5 @@ radial_panel <-
   (p_cdf   | p_qq) /
   (p_tail  | p_dep)
 
-# plot(radial_panel)
-ggsave("megpd/radial_unit_integral_n100k_betagrid1k_xi05.png", radial_panel)
+plot(radial_panel)
+ggsave("megpd/radial_numfun_n10k_xi05.png", radial_panel, dpi = 600, height = 10, width = 15)

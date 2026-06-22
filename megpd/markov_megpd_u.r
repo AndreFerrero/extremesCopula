@@ -217,10 +217,9 @@ xi_val <- 0.5
 
 # Dependence that gets STRONGER as values get LARGER
 delta_strong_upper <- function(r) {
-  # Starts at 0.8 (weak dependence at 0) and decays to 0.1 (strong dependence at infinity)
   0.2 + 0.6 * exp(-r / 5)
 }
-    
+
 # Run
 set.seed(1)
 
@@ -236,3 +235,5 @@ sim <- simulate_megpd_chain(
 )
 
 final_chain <- sim$final_chain
+
+save(final_chain, file = "megpd/chain_100k_unit_integral_betagrid1k_xi05.Rdata")

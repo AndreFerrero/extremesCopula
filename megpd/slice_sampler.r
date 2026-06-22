@@ -202,14 +202,14 @@ if (FALSE) {
   }
 
   res5 <- run_slice_sampler(log_megpd_biv,
-    n = 100000,
+    n = 5000,
     x0 = 1,
     w = 0.5,
     lower = 0,
     kappa = 2,
     sigma = 1,
     xi = 0.5,
-    x_prev = 100,
-    delta = delta_f_strong_upper
+    x_prev = 10,
+    delta = function(r) {0.8}
   )
 }

@@ -267,7 +267,7 @@ set.seed(42)
 
 kappa_val <- 2
 sigma_val <- 1
-xi_val    <- 0.1
+xi_val    <- 0.5
 n_steps   <- 10000
 
 cat("Running MEGPD slice-sampler chain (n =", n_steps, ")...\n")
@@ -277,7 +277,7 @@ sim <- simulate_megpd_slice(
   kappa        = kappa_val,
   sigma        = sigma_val,
   xi           = xi_val,
-  delta_func   = delta_nonmonotone,
+  delta_func   = delta_strong_upper,
   x0           = 1,
   burn_in_prop = 0.30,
   w_init       = 1,    # initial step width on log scale
