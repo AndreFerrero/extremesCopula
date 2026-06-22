@@ -282,4 +282,4 @@ radial_panel <-
   (p_tail  | p_dep)
 
 plot(radial_panel)
-ggsave("megpd/radial_numfun_n10k_xi05.png", radial_panel, dpi = 600, height = 10, width = 15)
+# ggsave("megpd/radial_numfun_n10k_xi05.png", radial_panel, dpi = 600, height = 10, width = 15)

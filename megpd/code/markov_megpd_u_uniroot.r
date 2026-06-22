@@ -113,48 +113,65 @@ dmegpd_biv <- function(
     out
 }
 
+u_to_x <- function(u) {
+  u / (1 - u)
+}
+
+x_to_u <- function(x) {
+  x / (x + 1)
+}
+
 # 1. Define the conditional density f(x | x_prev)
-conditional_pdf_x <- function(x, x_prev, kappa, sigma, xi, delta_func) {
-  # We return the joint density; normalization happens later
-  dmegpd_biv(x, x_prev, kappa, sigma, xi, delta_func)
+conditional_pdf_u <- function(u,
+                              x_prev,
+                              kappa,
+                              sigma,
+                              xi,
+                              delta_func) {
+
+  jacobian <- 1 / (1 - u)^2
+
+  f_x <- dmegpd_biv(
+          u_to_x(u),
+          x_prev,
+          kappa,
+          sigma,
+          xi,
+          delta_func
+      )
+
+  f_x * jacobian
 }
 
 # 2. Function to compute the CDF at a point 'target_x' using adaptive integration
-get_cdf_val <- function(target_x, x_prev, kappa, sigma, xi, delta_func, norm_const) {
+get_cdf_u_val <- function(target_u, x_prev, kappa, sigma, xi, delta_func, norm_const) {
+
   # Integrate from 0 to target_x
   # Use a log-transform internally if target_x is very large
-  val <- integrate(conditional_pdf_x, lower = 0, upper = target_x, 
-                   x_prev=x_prev, kappa=kappa, sigma=sigma, xi=xi, 
-                   delta_func=delta_func, subdivisions = 200)$value
+  val <- integrate(conditional_pdf_u, lower = 0, upper = target_u, x_prev=x_prev, kappa=kappa, sigma=sigma, xi=xi, 
+                   delta_func=delta_func)$value
   return(val / norm_const)
 }
 
 # 3. Sampling via Uniroot
 sample_conditional <- function(x_prev, kappa, sigma, xi, delta_func) {
-  # Step A: Find the normalization constant (Total Area)
-  # Integrate over a massive range or use log-range based on x_prev
-  d <- delta_func(x_prev)
-  lower_bound <- exp(log(x_prev) - 8*d)
-  upper_bound <- exp(log(x_prev) + 8*d)
   
-  norm_const <- integrate(conditional_pdf_x, lower = 1e-10, upper = Inf, 
-                          x_prev=x_prev, kappa=kappa, sigma=sigma, xi=xi, 
-                          delta_func=delta_func, subdivisions = 200)$value
+  norm_const <- integrate(conditional_pdf_u, lower = 0, upper = 1, x_prev=x_prev, kappa=kappa, sigma=sigma, xi=xi, delta_func=delta_func)$value
   
   # Step B: Draw Uniform
   p_target <- runif(1)
   
   # Step C: Find x such that CDF(x) = p_target
   # search range: [lower_bound, upper_bound]
-  res <- uniroot(function(x) {
-    get_cdf_val(x, x_prev, kappa, sigma, xi, delta_func, norm_const) - p_target
-  }, interval = c(1e-8, upper_bound * 2), extendInt = "yes")
+  res <- uniroot(function(u) {
+    get_cdf_u_val(u, x_prev, kappa, sigma, xi, delta_func, norm_const) - p_target
+  }, interval = c(1e-10, 1-1e-10), extendInt = "upX")
   
-  return(res$root)
+  u_to_x(res$root)
 }
 
 simulate_megpd_chain <- function(
-  n_steps = 2000,
+  n_steps,
   kappa,
   sigma,
   xi,
@@ -200,32 +217,3 @@ simulate_megpd_chain <- function(
     burn_in = burn_in
   )
 }
-
-
-set.seed(1)
-n <- 10000
-kappa_val <- 2
-sigma_val <- 1
-xi_val <- 0.5
-
-# Dependence that gets STRONGER as values get LARGER
-delta_strong_upper <- function(r) {
-  # Starts at 0.8 (weak dependence at 0) and decays to 0.1 (strong dependence at infinity)
-  0.2 + 0.6 * exp(-r / 5)
-}
-    
-# Run
-set.seed(1)
-
-sim <- simulate_megpd_chain(
-  n_steps = n,
-  kappa = kappa_val,
-  sigma = sigma_val,
-  xi = xi_val,
-  delta_func = delta_strong_upper,
-  x0 = 1,
-  burn_in_prop = 0.10,
-  show_progress = TRUE
-)
-
-final_chain <- sim$final_chain

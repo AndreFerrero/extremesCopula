@@ -1,0 +1,98 @@
+\documentclass[10pt, aspectratio=169]{beamer}
+
+% --- Load Metropolis Theme ---
+\usetheme{metropolis}
+\setbeamertemplate{frame numbering}[fraction]
+
+\usepackage{xcolor}
+
+\definecolor{IIDEGPD}{HTML}{00BFC4}
+\definecolor{EGPDGumbel}{HTML}{F8766D}
+\definecolor{IIDGPD}{HTML}{C77CFF}
+\definecolor{Declust}{HTML}{00BA38}
+\definecolor{CensGPD}{HTML}{DE8C00}
+\definecolor{Hill}{HTML}{619CFF}
+\definecolor{HillBC}{HTML}{FF61CC}
+
+% --- Custom Blue Palette Configuration ---
+\definecolor{DarkBlue}{RGB}{0, 33, 71}      % Deep Oxford Blue
+\definecolor{MidBlue}{RGB}{0, 82, 155}       % Professional Medium Blue
+\definecolor{LightBlue}{RGB}{173, 216, 230} % Soft Accent Blue
+
+% Apply colors to Metropolis elements
+\setbeamercolor{normal text}{fg=black, bg=white}
+\setbeamercolor{alerted text}{fg=MidBlue}
+\setbeamercolor{example text}{fg=DarkBlue}
+
+% Customizing the Progress Bar and Frame Titles
+\setbeamercolor{palette primary}{bg=DarkBlue, fg=white}
+\setbeamercolor{progress bar}{fg=MidBlue, bg=LightBlue}
+\setbeamercolor{title separator}{fg=MidBlue}
+\setbeamercolor{frametitle}{bg=DarkBlue, fg=white}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amsfonts, amssymb, bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[style=authoryear]{biblatex}
+
+\addbibresource{ref.bib}
+\AtBeginBibliography{\tiny}
+
+% --- Title ---
+\title{Extremes of Markov Chains without threshold selection}
+\subtitle{CSI - First year}
+\setbeamertemplate{title page}{
+  \centering
+
+  {\usebeamerfont{title}\inserttitle\par}
+	\vspace{-0.5em}
+
+	\textcolor{DarkBlue}{\rule{\textwidth}{0.5pt}}
+  
+  {\usebeamerfont{subtitle}\insertsubtitle\par}
+	\vspace{0.5em}
+
+  {\usebeamerfont{author}\insertauthor\par}
+  \vspace{0.3cm}
+
+  {\usebeamerfont{institute}\insertinstitute\par}
+  \vspace{0.3cm}
+
+  {\usebeamerfont{date}\insertdate\par}
+
+  \vfill
+
+  % logos at bottom
+  \includegraphics[height=1cm]{logo_um.png}
+  \hspace{0.5cm}
+  \includegraphics[height=1.2cm]{logo_imag.png}
+	\hspace{0.5cm}
+	\includegraphics[height=1cm]{inr_logo_grisbleu.png}
+  \vspace{0.5cm}
+}
+
+\author{
+  \textbf{Andrea Ferrero}$^{1}$\\[0.2cm]
+  \small Gwladys Toulemonde$^{1}$, Nicolas Meyer$^{1}$, Klaus Herrmann$^{2}$
+}
+
+\institute{
+  $^{1}$ \textit{University of Montpellier, Lemon Team Inria} \\
+  $^{2}$ \textit{University of Sherbrooke}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{frame}{Background}
+    \begin{itemize}
+        \item 
+    \end{itemize}
+\end{frame}
+
+\end{document}
