@@ -6,8 +6,8 @@ library(copula)
 # 1. ROBUST CORE FUNCTIONS
 ###########################################################
 
-# source("megpd/markov_megpd_uniroot.r")
-source("megpd/markov_megpd_u_uniroot.r")
+# source("megpd/code/markov_megpd_uniroot.r")
+source("megpd/code/markov_megpd_u_uniroot.r")
 
 set.seed(42)
 simulate_R_quantiles <- function(
@@ -100,8 +100,8 @@ delta_strong_upper <- function(r) {
 }
 
 sim_qq <- simulate_R_quantiles(
-    M = 20,
-    n_steps = 10000,
+    M = 100,
+    n_steps = 100000,
     probs = seq(0.001, 0.999, length.out = 400),
     kappa = kappa_val,
     sigma = sigma_val,
@@ -109,9 +109,11 @@ sim_qq <- simulate_R_quantiles(
     delta_func = delta_strong_upper
 )
 
-# save(sim_qq, file = "megpd/radius_simqq_M200_n10000_xi05.Rdata")
+dim(sim_qq$Q)
 
-Q <- sim_qq$Q
+# save(sim_qq, file = "megpd/res/radius_simqq_uvar_M100_n100000_xi05.Rdata")
+
+Q <- sim_qq$Q[1:100,]
 p <- sim_qq$probs
 
 theoretical <- egpd::qegpd(
@@ -163,9 +165,9 @@ p_qq <- ggplot(df) +
 
     theme_bw()
 
-# ggsave("megpd/radius_quantiles_M200_n10000_xi05.png", p_qq)
+ggsave("megpd/figures/radius_quantiles_M100_n10000_xi05.png", p_qq)
 
-# load("C:/Users/Andrea Ferrero/extremesCopula/megpd/radius_simqq_M200_n10000_xi05.Rdata")
+load("C:/Users/Andrea Ferrero/extremesCopula/megpd/res/radius_simqq_M200_n10000_xi05.Rdata")
 # p_qq
 
 sim_qq$success

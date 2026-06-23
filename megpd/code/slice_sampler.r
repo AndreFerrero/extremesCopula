@@ -158,58 +158,85 @@ run_slice_sampler <- function(log_target, n, x0,
 # =============================================================================
 # Examples
 # =============================================================================
-if (FALSE) {
-
-  ## --- 1. Standard Normal (log-target up to a constant) --------------------
-  log_norm <- function(x) -0.5 * x^2
-
-  res1 <- run_slice_sampler(log_norm, n = 5000, x0 = 0, w = 2)
 
 
-  ## --- 2. Beta(2, 5) on (0, 1) — pass shape params via ... ----------------
-  log_beta <- function(x, a, b) {
-    if (x <= 0 || x >= 1) return(-Inf)
-    (a - 1) * log(x) + (b - 1) * log(1 - x)
-  }
+# ## --- 1. Standard Normal (log-target up to a constant) --------------------
+# log_norm <- function(x) -0.5 * x^2
 
-  res2 <- run_slice_sampler(log_beta, n = 5000, x0 = 0.3,
-                             w = 0.3, lower = 0, upper = 1,
-                             a = 2, b = 5)
+# res1 <- run_slice_sampler(log_norm, n = 5000, x0 = 0, w = 2)
 
 
-  ## --- 3. Generalised Pareto  GPD(sigma=1, xi=0.2) on (0, Inf) -------------
-  log_gpd <- function(x, sigma, xi) {
-    if (x <= 0) return(-Inf)
-    if (xi != 0 && x > -sigma / xi) return(-Inf)
-    -log(sigma) - (1 / xi + 1) * log(1 + xi * x / sigma)
-  }
+# ## --- 2. Beta(2, 5) on (0, 1) — pass shape params via ... ----------------
+# log_beta <- function(x, a, b) {
+#   if (x <= 0 || x >= 1) return(-Inf)
+#   (a - 1) * log(x) + (b - 1) * log(1 - x)
+# }
 
-  res3 <- run_slice_sampler(log_gpd, n = 20000, x0 = 1,
-                             w = 100, lower = 0,
-                             sigma = 1, xi = 0.2)
-
-  ## --- 4. Bimodal mixture of Gaussians (stress test step-out) --------------
-  log_mix <- function(x) {
-    log(0.4 * exp(-0.5 * (x + 3)^2) +
-        0.6 * exp(-0.5 * (x - 3)^2))
-  }
-
-  res4 <- run_slice_sampler(log_mix, n = 10000, x0 = 0, w = 2)
+# res2 <- run_slice_sampler(log_beta, n = 5000, x0 = 0.3,
+#                            w = 0.3, lower = 0, upper = 1,
+#                            a = 2, b = 5)
 
 
-  log_megpd_biv <- function(x, x_prev, kappa, sigma, xi, delta) {
-    log(dmegpd_biv(x, x_prev, kappa, sigma, xi, delta))
-  }
+# ## --- 3. Generalised Pareto  GPD(sigma=1, xi=0.2) on (0, Inf) -------------
+# log_gpd <- function(x, sigma, xi) {
+#   if (x <= 0) return(-Inf)
+#   if (xi != 0 && x > -sigma / xi) return(-Inf)
+#   -log(sigma) - (1 / xi + 1) * log(1 + xi * x / sigma)
+# }
 
-  res5 <- run_slice_sampler(log_megpd_biv,
-    n = 5000,
-    x0 = 1,
-    w = 0.5,
-    lower = 0,
-    kappa = 2,
-    sigma = 1,
-    xi = 0.5,
-    x_prev = 10,
-    delta = function(r) {0.8}
-  )
+# res3 <- run_slice_sampler(log_gpd, n = 20000, x0 = 1,
+#                            w = 100, lower = 0,
+#                            sigma = 1, xi = 0.2)
+
+# ## --- 4. Bimodal mixture of Gaussians (stress test step-out) --------------
+# log_mix <- function(x) {
+#   log(0.4 * exp(-0.5 * (x + 3)^2) +
+#       0.6 * exp(-0.5 * (x - 3)^2))
+# }
+
+# res4 <- run_slice_sampler(log_mix, n = 10000, x0 = 0, w = 2)
+
+
+log_megpd_biv <- function(x, x_prev, kappa, sigma, xi, delta) {
+  log(dmegpd_biv(x, x_prev, kappa, sigma, xi, delta))
 }
+
+# res5 <- run_slice_sampler(log_megpd_biv,
+#   n = 5000,
+#   x0 = 1,
+#   w = 0.5,
+#   lower = 0,
+#   kappa = 2,
+#   sigma = 1,
+#   xi = 0.5,
+#   x_prev = 10,
+#   delta = delta_strong_upper
+# )
+
+source("megpd/code/markov_megpd_u_uniroot.r", chdir = TRUE)
+
+# Dependence that gets STRONGER as values get LARGER
+delta_strong_upper <- function(r) {
+  0.2 + 0.6 * exp(-r / 5)
+}
+
+log_target <- function(u, x_prev, kappa, sigma, xi, delta) {
+  log(conditional_pdf_u(u, x_prev, kappa, sigma, xi, delta))
+}
+
+res6 <- run_slice_sampler(
+  log_target,
+  n = 20000,
+  x0 = 0.5,
+  w = 0.5,
+  lower = 0,
+  upper = 1,
+  kappa = 2,
+  sigma = 1,
+  xi = 0.5,
+  x_prev = 70,
+  delta = delta_strong_upper
+)
+
+max(u_to_x(res6$samples))
+hist(u_to_x(re6$samples))
