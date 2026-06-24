@@ -113,7 +113,7 @@ dim(sim_qq$Q)
 
 # save(sim_qq, file = "megpd/res/radius_simqq_uvar_M100_n100000_xi05.Rdata")
 
-Q <- sim_qq$Q[1:100,]
+Q <- sim_qq$Q
 p <- sim_qq$probs
 
 theoretical <- egpd::qegpd(
@@ -167,8 +167,8 @@ p_qq <- ggplot(df) +
 
 ggsave("megpd/figures/radius_quantiles_M100_n10000_xi05.png", p_qq)
 
-load("C:/Users/Andrea Ferrero/extremesCopula/megpd/res/radius_simqq_M200_n10000_xi05.Rdata")
+load("C:/Users/Andrea Ferrero/extremesCopula/megpd/res/radius_simqq_uvar_M100_n100000_xi05.Rdata")
 # p_qq
 
-sim_qq$success
+sum(sim_qq$success)
 mean(sim_qq$success)
