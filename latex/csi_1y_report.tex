@@ -1,0 +1,143 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amsfonts, amssymb, bm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage[style=authoryear, backend=biber]{biblatex}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage[svgnames]{xcolor}
+
+% --- Bibliography ---
+% Ensure you have your ref.bib file in the same folder
+\addbibresource{ref.bib}
+
+% --- Custom Formatting ---
+\hypersetup{colorlinks=true, linkcolor=DarkBlue, citecolor=DarkBlue, urlcolor=DarkBlue}
+
+% --- Title Information ---
+\title{\textbf{First Year PhD Progress Report (CSI)}}
+\author{\textbf{Andrea Ferrero} \\ 
+    \small Supervisors: Gwladys Toulemonde$^1$, Nicolas Meyer$^1$, Klaus Herrmann$^2$ \\
+    \small $^1$University of Montpellier, Lemon Team Inria \\
+    \small $^2$University of Sherbrooke}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Extreme Value Theory (EVT) has gained significant attention in the literature over the last decades. The main goal of this field consists in defining models that can adequately extrapolate and quantify the risk of extreme observations.
+
+In particular, classical models leverage asymptotic results, for instance on the limit distribution of maxima or of exceedances above (sufficiently high) thresholds, to infer high quantiles even beyond the observed maximum and ideally produce uncertainty estimates over those quantiles. Moreover, extensions to Bayesian models provide the benefit of automatic uncertainty quantification once the posterior has been recovered, exploit experts information when available \parencite{coles1996} and prediction naturally fits within the Bayesian framework via the posterior predictive distribution. This makes Bayesian extreme value models natural candidates for the task at hand.
+
+An important aspect of extreme value modelling is the handling of the dependence structure. It is well known within classical EVT that dependence can create clusters of extremes, a property that can be quantified by the extremal index, which is the reciprocal of the mean cluster size. Therefore, a lot of effort has been devoted to the estimation of the dependence properties of the process, since being able to quantify how often extremes occur together is valuable information in practice.
+
+In particular, when it comes to stationary sequences satisfying the so called $D(u_n)$ condition \parencite{leadbetter1974}, a classical result shows that the limit distribution of the maximum is still a Generalised Extreme Value (GEV) distribution, where the extremal index modifies the location and scale parameters while leaving the shape parameter (the Extreme Value Index) unchanged. See \textcite[Chapter 5]{coles2001}.
+
+Other approaches to handle dependence beyond the case of maxima have been proposed, for instance delclustering. The idea is to find clusters of extremes above a threshold with ad-hoc methodologies, see for example \textcite{ferro2003}. Once such clusters have been found, only cluster maxima are retained so as to produce a sequence of approximately independent excedances. At this point, the classical Generalised Pareto Distribution (GPD) can be fit under the same asymptotic justification of independent sequences. Clearly, the drawback of such procedure is the extensive wastage of information, which is undesirable given the scarsicity of extreme values in practice. A study on the challenges posed by declustering was carried out in \textcite{fawcett2007}.
+
+A great body of literature has also considered imposing stronger dependence assumptions on the observed sequence to leverage the implied asymptotic properties. One such assumption is the Markov property. In the case of Markov chains of order one, the classical approach is to assume that extremes of the pair $(X_{t-1}, X_t)$ can be modelled via standard Bivariate Extreme Value Models, for example the logistic model. Moreover, extensive theory has been developped on the behaviour of the Tail Chain, that is the Markov chain above a sufficiently high threshold, see for instance \textcite{drees2015, papastathopoulos2017}. An important property of tail chains is that the entire behaviour of extremes is governed by a so called spectral process. The extremal index can also be inferred if the latent behaviour is known, for example for the logistic model (see \textcite[Section 10.4.2]{beirlant2005}). Applications of Markov Chains to the study of extremes have been proposed, for instance, in \textcite{fawcett2006, winter2016, winter2017}.
+
+A crucial problem in the modelling of extremes, though, is the bias-variance trade-off that arises in practice. This is due to the choice of the number of blocks for the application of the GEV distribution to block maxima, or the choice of the threshold for the application of the GPD to the exceedances. Also the study of extremes of markov chains is primarily tackled by conditioning over a high threshold. However, choosing the appropriate threshold can be challenging and often based on subjective judgement by the practitioner. This has motivated the increasing interest in the construction of models for the entire distribution which ensure the same extremal asymptotic behaviour of classical methods. In the univariate framework, the main contributions to this approach were given by \textcite{frigessi2002}, who proposed a dynamic mixture distribution, and the series of works of \textcite{papastathopoulos2013, naveau2016, stein2021, gamet2022}, for the introduction of the Extended GPD (EGPD) and its variants.
+
+In its simplest form, the EGPD appropriately transforms the GPD with a suitable distortion function leaving the tail behaviour unchanged but making the center of the distribution more amenable to model real data. This has culminated in the development of semiparametric versions increasing bulk flexibility via Bernstein polynomials \parencite{tencaliec2020}.
+
+Recently, the idea of avoiding threshold selection has been proposed in the multivariate framework: \textcite{andre2024} suggested a dynamic mixture of copulas, in the spirit of \textcite{frigessi2002} to allow for higher flexibility in the dependence structure. On the other hand, \textcite{gaetan2025, alotaibi2025} have started to propose multivariate extensions of the EGPD.
+
+In what follows, we present the currently investigated approches to deal with dependent extremes in the univariate case.
+
+\section{Copulas and the Limit Distribution of Maxima}
+Consider a univariate sequence of random variables $X_1, \dots, X_n$, with common marginal distribution $F$. By means of Sklar's theorem \parencite{sklar1959}, the joint distribution is defined by an $n$-dimensional copula $C_n$:
+\[
+P(X_1 \leq x_1, \dots, X_n \leq x_n) = C_n(F(x_1), \dots, F(x_n)).
+\]
+
+Following the work of \textcite{herrmann2024}, we focus on the distortion function $D(u) = \lim_{n \to \infty} \delta_n(u^{1/r_n})$, where $\delta_n$ represents the copula diagonal $\delta_n(u) = C_n(u, \dots, u)$ and $r_n = r(n)$ is a suitable rate function such that $\lim_{n \to \infty} r_n = \infty$. The limit distribution of the maxima $M_n$ is given by:
+\[
+\lim_{n \to \infty} P \left(\frac{M_n - d^*_{\lceil{r_n}\rceil}}{c^*_{\lceil{r_n}\rceil}} \leq x \right) = D \circ G(x),
+\]
+where $G$ is the Generalized Extreme Value (GEV) distribution arising from the maximum of the sequence $X_1^*, \dots, X_n^* \overset{i.i.d}{\sim} F$. This result represents a generalisation of the Fisher-Tippett-Gnedenko theorem and covers the existing theory as subcases. In the case of Archimedean copulas, the distortion function takes a specific form depending on the generator $\psi$ of the copula, and the limit distribution of the maximum is:
+
+\[
+D \circ G(x) = \psi((- \log G(x))^{1/\rho})
+\],
+
+with $\rho$ the coefficient of regular variation of the generator. See \textcite[Table 1]{herrmann2024} for a list of generators and associated coefficients of regular variation.
+
+Under Archimedean copulas, the limit distribution of the maximum is generally not within the GEV class unless $C_n$ is the Gumbel copula, which actually leaves the limit unchanged.
+
+
+\subsection{Inference}
+
+It would be interesting to be able to estimate the limit distribution of the maximum under such a copula depedent framework. For simplicity, we can assume a parametric, Archimedean copula so that we have a direct form of the distortion function.
+
+The first step would be to estimate the $n$-dimensional copula. However, the first issue encountered is the potential for high dimensionality if the sample size is too large, since a unique copula is imposed over all the $n$ variables. The reason why high dimension poses problems in the estimation of copulas is the general intractability of the copula density. For the Gumbel copula implementation in the R package \textit{copula}, aftr a dimension of 220 the density is not implemented.
+
+In \textcite{hofert2013}, alongside a discussion of issues under high dimensional copula, we can also find an interesting approach that is found to scale with dimensionality, namely the \textit{Diagonal Maximum Likelihood Estimator} (DMLE). Its principle is based on the realisation that the maximum of random variables has distribution given by the diagonal of their copula. Deriving the explicit form of the diagonal leads to direct maximisation of the likelihood. For the Gumbel copula, an explicit solution also exists.
+
+Some effort has also been spent on the study of \textit{Simulation Based Inference} in the Bayesian framework, which has been proposed specifically to tackle intractable likelihoods when sampling from the model is relatively cheap. One of the considered method was Robust Bayesian Synthetic Likelihood \parencite{an2020}.
+
+A second, more challenging problem of this dependence framework is the lack of replications from the copula structure. Assuming to observe only one series from the copula $C_n$ makes the model strongly unidentifiable and therefore difficult to estimate.
+
+A remedy to the absence of replicates could be the assumption of observing blocks of variables with the same copula dependence. Assuming between-blocks independence automatically leads to replicates of the copula of interest. Inference then could be done on block maxima by direct maximisation of the likelihood constructed from the known limit distribution $D \circ G(x)$.
+
+The clear limitation is the extent to which this block structure can be exploited in practice, given that the construction of independent blocks of the same copula from a single univariate series is not a trivial task. A different perspective could be taken by considering a multivariate framework where the variables represent homogenous elements of a single system, making the single copula assumption reasonable. The extend to which there is interest on the unique maximum of such a system, which needs to be large enough ($n \to \infty$) for the theory to hold, is still be determined.
+
+\section{Extremes of Markov Chains without threshold selection}
+
+While attempting to solve the issues presented in the previous section, we considered a Markov dependence structure. In particular, a possible approach is to consider Markov chains whose transitions are given by copulas. See for example \textcite{chen2009,longla2012}, where ergodicity and mixing conditions are established for a wide range of copula choices. The idea is to assume the sequence $X_1, \dots, X_n \sim F$ has consecutive pairs following a copula $C$:
+
+\[
+P(X_{t-1} \leq x_{t-1}, X_t \leq x_t) = C(F(x_{t-1}), F(x_t))
+\]
+
+
+Choosing a tail dependent copula like the Gumbel or the Joe allows for the modelling of the joint occurence of extremes. Unfortunately, the connection to the theory of maxima is not as direct due to the different dependence structure.
+
+Moreover, in contrast to the existing literature on extremes of Markov chains, this approach would require defining a model for the entire distribution and not just exceedances above a high threshold.
+
+Following the literature on threshold-free approaches, a natural choice is to assume an Extended GPD for the margin F. The simplest model is the one proposed in \textcite{naveau2016}, which considers a power transformation:
+
+\[
+F(x) = \left[ H_{\xi, \sigma}(x) \right]^\kappa
+\]
+
+where $H_{\xi, \sigma}(x)$ is the GPD CDF and $\kappa > 0$ is the parameter that models the center of the distribution. The most useful property is the tail consistency of $F$: the extreme value index $\xi$ remains the same as the underlying GPD, regardless of $\kappa$. This allows for a threshold-free transition from the bulk of the data to the tail.
+
+\subsection{Simulation and Preliminary Results}
+
+Simulation from Copula Markov Chains can be performed using the Rosenblatt transform:
+
+\begin{enumerate}
+    \item Generate $V_t \sim U(0,1)$.
+    \item Obtain $U_t$ via (numerical) inversion of the conditional copula $C(U_t \mid U_{t-1})$.
+    \item Transform to the desired margins: $X_t = F^{-1}(U_t)$ using the EGPD.
+\end{enumerate}
+
+Preliminary simulations under this model suggest that:
+
+\begin{itemize}
+    \item Ignoring (tail) dependence can lead to much slower convergence of the extreme value index, potentially leading to estimates of the opposite sign, arguing against models that do not take dependence into account.
+    \item Avoiding the threshold selection step makes the model competitive against existing approaches, especially under moderate sample sizes.
+    \item The effect of copula misspecification can negatively affect the estimation of the margin in our copula markov models, making the choice of the copula a delicate step.
+\end{itemize}
+
+\section{Perspectives and Future Work}
+The next phase will focus on increasing the flexibility of the dependence structure of the Markov models. The current choice assumes a fixed copula family for all transitions, which may not capture different behaviours between the center and the tails. We are investigating:
+\begin{itemize}
+    \item \textbf{Dynamic Copula Mixtures:} A mixture of copulas with dynamic weights to allow smooth transitions without threshold selection \parencite{andre2024}.
+    \item \textbf{Multivariate EGPD:} The extension of the univariate EGPD to the multivariate setting could be used to model the pair $(X_{t-1}, X_t)$, defining a Markov chain \parencite{gaetan2025}.
+\end{itemize}
+
+\printbibliography
+
+\end{document}

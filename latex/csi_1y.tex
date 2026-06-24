@@ -137,10 +137,10 @@
   Then, given the \alert{Distortion} $D(u) = \lim_{n \to \infty} \delta_n(u^{1/r_n})$, where $\delta_n$ is the copula \alert{diagonal} and $r_n$ a suitable rate function: \pause
 
   \[
-  \lim_{n \to \infty} P \left(\frac{M_n - d^*_{\lceil{r_n}\rceil}}{c^*_{\lceil{r_n}\rceil}} \leq x \right) = D \circ H(x)
+  \lim_{n \to \infty} P \left(\frac{M_n - d^*_{\lceil{r_n}\rceil}}{c^*_{\lceil{r_n}\rceil}} \leq x \right) = D \circ G(x)
   \],
 
-  where $M_n$ is the maximum of the sequence and $H$ is the GEV limiting distribution of the maximum for iid variables from $F$. See \parencite{herrmann2024}.
+  where $M_n$ is the maximum of the sequence and $G$ is the GEV limiting distribution of the maximum for iid variables from $F$. See \parencite{herrmann2024}.
 \end{frame}
 
 \begin{frame}{Starting Goal and Related Problems}
@@ -149,7 +149,7 @@
   \vspace{0.1cm}
     Estimate the limit distribution of the maxima
     \[
-    D \circ H
+    D \circ G
     \]
     in order to infer the asymptotic behaviour of extremes.
   \end{block}
