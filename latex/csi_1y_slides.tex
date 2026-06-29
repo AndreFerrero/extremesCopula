@@ -143,7 +143,7 @@
   where $M_n$ is the maximum of the sequence and $G$ is the GEV limiting distribution of the maximum for iid variables from $F$. See \parencite{herrmann2024}.
 \end{frame}
 
-\begin{frame}{Starting Goal and Related Problems}
+\begin{frame}{Starting Goal and Related Challenges}
 
   \begin{block}{Goal}
   \vspace{0.1cm}
@@ -160,7 +160,7 @@
   \begin{itemize}
       \item Estimation of the $n$-dimensional copula.
       \item Potentially high-dimensional dependence structure.
-      \item Only one realization of the univariate time series is observed.
+      \item Only one realization of the univariate sequence.
   \end{itemize}
   \end{alertblock}
 
@@ -264,7 +264,7 @@
 \end{frame}
 
 \begin{frame}{Copula Markov Chains: Simulation}
-    \begin{block}{Sampling (Rosenblatt Transform)}
+    \begin{block}{Sampling (Inverse Rosenblatt Transform)}
         \begin{enumerate}
             \item Generate $V_t \sim U(0,1)$
             \item Set $U_1 = V_1$ and $U_t = C^{-1}(V_t \mid U_{t-1})$ (Numerical Inversion)
@@ -295,7 +295,7 @@
 \end{frame}
 
 \begin{frame}{Current Direction: More flexible dependence structure}
-  \textbf{Question}: Can we construct Markov Chains with EGPD margin but not a fixed Copula structure for the transitions?
+  \textbf{Question}: Can we construct Markov Chains with EGPD margin but flexible copula/dependence structure for the transitions?
 
   Current ideas:
   
