@@ -30,16 +30,16 @@ curve(delta_gamma, to = 50)
 delta_upside <- function(r) (- 2.5) * dgamma(r, 9, 0.7) + 0.5
 curve(delta_upside, to = 50)
 
-x <- rmegpd(10000, 2, 1, 0.5, delta_strong_upper)
+x <- rmegpd(10000, 2, 1, 0.5, delta_gamma)
 
 lx <- log(x)
 
-plot(lx)
-
 kd <- MASS::kde2d(lx[,1], lx[,2], n = 200)
 
+plot(lx)
+
 # add contour lines
-contour(kd, nlevels = 15, add = TRUE, drawlabels = FALSE, col = "red", lwd = 2)
+contour(kd, nlevels = 15, add = TRUE, drawlabels = FALSE, col = "blue", lwd = 2)
 
 r <- apply(x, 1, sum)
 hist(r)
