@@ -224,21 +224,19 @@ p_qq <- ggplot(
 #----------------------------------------------------------
 
 df_dep <- data.frame(
-  Rt  = Rt[-length(Rt)],
-  Rt1 = Rt[-1]
+  logxt  = log(final_chain[-length(final_chain)]),
+  logxtm1 = log(final_chain[-1])
 )
 
 p_dep <- ggplot(
   df_dep,
-  aes(Rt, Rt1)
+  aes(logxt, logxtm1)
 ) +
   geom_point(
     alpha = 0.15,
     size = 0.6,
     colour = "steelblue"
   ) +
-  scale_x_log10() +
-  scale_y_log10() +
   theme_bw(base_size = 13)
 
 #----------------------------------------------------------
@@ -281,5 +279,5 @@ radial_panel <-
   (p_cdf   | p_qq) /
   (p_tail  | p_dep)
 
-plot(radial_panel)
-# ggsave("megpd/radial_numfun_n10k_xi05.png", radial_panel, dpi = 600, height = 10, width = 15)
+
+ggsave("megpd/figures/radial_julia_deltastrongupper_n1m_xi05.png", radial_panel, dpi = 600, height = 10, width = 15)
